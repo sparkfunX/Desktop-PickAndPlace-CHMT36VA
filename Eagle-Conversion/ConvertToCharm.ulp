@@ -1,0 +1,506 @@
+#usage "<b>Data generation for mounting machines</b>\n"
+"<p>"
+"Generates a .dpv work file for CharmHigh Pick and Place Machines"
+"<author>Author: Nathan</author>"
+
+// THIS PROGRAM IS PROVIDED AS IS AND WITHOUT WARRANTY OF ANY KIND, EXPRESSED OR IMPLIED
+
+//Sometimes you just need to jog everything
+real offsetY = 0.0; //0.5 = move everything up 0.5mm
+real offsetX = 0.0; //0.5 = move everything to right 0.5mm
+
+
+string usedFeederList[]; //Keeps track of the components in the feeders
+string availableFeederList[];
+int numberOfFeeders;
+
+string hasFiducials = "False"; //Goes true when board has fiducials located
+
+
+int feederID = 0; //The tape this part assigned to
+real feederXOffset = 0.0; //In mm. Offset from the default pick point
+real feederYOffset = 0.0;
+int feederFeedDistance = 4; //mm between components on tape. 2, 4, 8, 12, 16, or 24mm. Most 8mm wide tapes are 4mm between components.
+real feederPickHeight = 0.5; //In mm. 0.5 is default.
+int feederPickSpeed = 0; //1 to 100%. 0 will follow master control.
+real componentSizeX = 0.1; //Size of component in mm
+real componentSizeY = 0.1;
+int feederHead = 1; //There are two heads: 1 or 2
+int componentRotation = 0; //If the eagle FP is created different from how the IC is packaged in the tape, this offset unites the two.
+string mountComponent = "True"; //Most components will be mounted
+
+string newPart = "False"; //Goes true when a component is not found in setPartProfile()
+string listOfNewParts = ""; //String of all the new parts not found in partProfile list
+
+string listOfKnownParts = ""; //String of all the feeders used
+
+int NO_MOUNT = 30;
+string NO_MOUNT_STR = "No Mount";
+int NEW_SKIP = 31;
+
+//TODO Add flags for check vacuum and check vision of a given feeder
+
+//Adds the opening header information to the dpv file
+void addHeader()
+{
+  //File header
+  printf("separated\n");
+  printf("FILE,SparkFun_Conversion_Script.dpv\n");
+  printf("PCBFILE,SparkFun_Conversion_Script\n");
+  printf("DATE,2017/11/27\n"); //Todo pull in current date/time
+  printf("TIME,14:42:01\n");
+  printf("PANELYPE,0\n"); //Typo is correct. Type 0 = batch of PCBs. Type 1 = panel of PCBs. See addBatch() for info.
+  printf("\n");
+}
+
+//Add this feeder name and ID to the used feeder list
+void addFeederToList(string partName, int feederID)
+{
+  //See if this is already in the list
+  int pos = strstr(listOfKnownParts, partName);
+
+  if (pos == -1)
+  {
+    string newFeederID = "";
+    sprintf(newFeederID, "%d", feederID);
+    listOfKnownParts = listOfKnownParts + newFeederID + ") " + partName + '\n';
+  }
+}
+
+//Given a component ID, try to find its name in the available feeders
+//Search the feeder list of aliases as well
+//Returns the ID of the feeder
+int locateFeederNumber(string partName)
+{
+  //Search the list of feeders for this part name
+  int feederNumber;
+  for (feederNumber = 0 ; feederNumber < numberOfFeeders ; feederNumber++)
+  {
+    string thisLine = availableFeederList[feederNumber];
+
+    string feederData[];
+    strsplit(feederData, thisLine, ',');
+
+	//dlgMessageBox(feederData[2] + " "+ partName);
+	
+    if (feederData[2] == partName)
+    {
+      return (feederNumber);
+    }
+
+    //Check aliases
+    //Take what's in column 15 and split it up, then search it
+    string aliases[];
+    int count = strsplit(aliases, feederData[15], ':');
+
+    for (int y = 0 ; y < count ; y++)
+    {
+	  if(aliases[y] != "") //The strsplit above returns some weird records with zero length, ignore them
+	  {
+		  //See if this alias is anywhere within the partName
+		  int pos = strstr(partName, aliases[y]);
+		  if (pos != -1) //This alias has been found in the partName
+		  {
+
+			if (feederData[2] == NO_MOUNT_STR)
+			{
+				//This is an alias for a non-mount device
+				return (NO_MOUNT);
+			}
+			else
+			{
+				return (feederNumber); //Return this feeder number
+			}
+		  }
+		 }
+    }
+
+    if (feederData[2] == "Stop")
+    {
+      //We hit the end of the list, we didn't find it.
+      return (NEW_SKIP);
+    }
+  }
+
+  dlgMessageBox("Error in feeder lookup: You shouldn't be here", "OK");
+  return (NEW_SKIP); //We should not get here
+}
+
+//Given a part name set the various feeder aspects
+string setPartProfile(string partName)
+{
+  //Find the line in the feeder file that contains this partName
+  int lineNumber = locateFeederNumber(partName);
+
+  //Set the part specs
+  if (lineNumber == NO_MOUNT)
+  {
+    //Do nothing with this part
+    return (NO_MOUNT_STR);
+  }
+  else if (lineNumber == NEW_SKIP)
+  {
+    //New, unidentified component. Use defaults.
+    newPart = "True";
+
+    //See if this is already in the list
+    int pos = strstr(listOfNewParts, partName);
+
+    if (pos == -1)
+    {
+      listOfNewParts = listOfNewParts + partName + '\n';
+    }
+
+    //Set this to defaults
+    feederID = 0; //No feeder assigned
+    feederXOffset = 0.0; //No offset
+    feederYOffset = 0.0;
+    feederPickHeight = 0.5; //In mm. 0.5 is default.
+    feederPickSpeed = 0; //1 to 100%. 0 will follow master control.
+    feederHead = 1;
+    componentRotation = 0;
+    feederFeedDistance = 4; //2, 4, 8, 12, 16, or 24mm. 4mm is most common.
+    mountComponent = "False";
+
+    componentSizeX = 0.0; //Size of component in mm
+    componentSizeY = 0.0;
+	
+    return (partName);
+  }
+  else
+  {
+    //Get the data for this feeder
+    string feeder[];
+    string thisLine = availableFeederList[lineNumber];
+    strsplit(feeder, thisLine, ',');
+
+    feederID = strtod(feeder[1]);
+    partName = (feeder[2]);
+    feederXOffset = strtod(feeder[3]);
+    feederYOffset = strtod(feeder[4]);
+    feederPickHeight = strtod(feeder[5]); //In mm. 0.5 is default.
+    feederPickSpeed = strtod(feeder[6]); //1 to 100%. 0 will follow master control.
+    feederHead = strtod(feeder[7]);
+    componentRotation = strtod(feeder[8]);
+    feederFeedDistance = strtod(feeder[9]); //2, 4, 8, 12, 16, or 24mm
+
+    mountComponent = "True";
+    if (feeder[10] != "Y")
+    {
+      mountComponent = "False";
+    }
+    //11 = Check Vacuum
+    //12 = Use Vision
+    //13 = Centroid Correction X
+    //14 = Centroid Correction Y
+    //15 = Aliases
+
+    componentSizeX = 0.0; //Size of component in mm
+    componentSizeY = 0.0;
+
+    addFeederToList(partName, feederID);
+    return (partName);
+  }
+}
+
+//Figures out the feeders needed and creates a material stack
+void addFeeders()
+{
+  board(X)
+  {
+    //Create Material Stack
+    printf("\n");
+    printf("Table,No.,ID,DeltX,DeltY,FeedRates,Note,Height,Speed,Status,SizeX,SizeY\n");
+
+    int stackNumber = 0;
+
+    X.elements(E) if (E.populate) {
+
+      string componentName = E.value + '-' + E.package.name;
+
+      int isSmd = 0;
+
+      E.package.contacts(C) {
+        if (C.smd && C.smd.layer == 1) {
+          isSmd = 1;
+        }
+      }
+
+      if (isSmd)
+      {
+		//For every SMD component on this design, look up its feeder
+        componentName = setPartProfile(componentName); //This will, if possible, resolve any aliases to a known part name
+
+        //Filter out stuff that is not actually SMD mounted devices
+        if (componentName == NO_MOUNT_STR)
+        {
+          //This component does not need a feeder record
+        }
+        else
+        {
+          //Do we already have this entry in the feeder list?
+          string componentNameLookup = lookup(usedFeederList, componentName, 0);
+
+          //If the component is not found then add it to the used feeder list
+          if (componentNameLookup == "")
+          {
+            //Table,No.,ID,DeltX,DeltY,
+            //FeedRates,Note,Height,Speed,
+            //Status,SizeX,SizeY
+
+            //0b.0000.0ABC
+            //A = 1 = Use Vision
+            //A = 0 = No Vision
+            //B = 1 = Use Vacuum Detection
+            //B = 0 = No Vacuum Detection
+            //C = 1 = Skip placement
+            //C = 0 = Place this component
+            //Example: 3 = no place, vac, no vis
+
+            int mountValue = 6;
+            if (mountComponent == "False") mountValue = 7;
+
+            //Station,0,1,0,0,4, 0.1uF,0.5,0,6,0,0
+            printf("Station, %d, %d, %.2f, %.2f, %d, %s, %.2f, %d, %d, %.2f, %.2f\n",
+                   stackNumber, feederID, feederXOffset, feederYOffset,
+                   feederFeedDistance, componentName, feederPickHeight, feederPickSpeed,
+                   mountValue, componentSizeX, componentSizeY); //mountValue: 6 is to place, 7 is to skip
+
+            //Add this package to the lookup table so we don't use it again
+            usedFeederList[stackNumber] = componentName;
+
+            stackNumber++;
+          }
+        }
+      }
+    }
+  }
+}
+
+
+void addBatch()
+{
+  //Batch is where the user takes multiple copies of the same design and mounts them
+  //into the machine at the same time.
+  //Doing an array is where you have one PCB but X number of copies panelized into an array
+
+  //If you are doing a batch then the header is
+  //PANELYPE,0
+  //If you are doing an array then the header is
+  //PANELYPE,1
+  //Typo is correct.
+
+  printf("\n");
+
+  //When there is a batch of boards it looks like this
+  printf("Table,No.,ID,DeltX,DeltY\n");
+  printf("Panel_Coord,0,1,0,0\n");
+
+  //When you define an array you get this:
+  //Table,No.,ID,IntervalX,IntervalY,NumX,NumY
+  // IntervalX = x spacing. Not sure if this is distance between array
+  // NumX = number of copies in X direction
+  //Panel_Array,0,1,0,0,2,2
+
+  //If you have an X'd out PCB in the array you can add a skip record.
+  //When you add a skip, you get another
+  //Panel_Array,1,4,0,0,2,2 //Skip board #4 in the array
+  //This doesn't quite make sense but skips will most likely NOT be automated (user will input an X'd out board during job run)
+
+}
+
+void addComponents()
+{
+  //TODO - When you press USE DUAL NOZZLE the program figures out some sort of
+  //best use of two heads. Perhaps we just let the user click this button rather than
+  //try to automate it.
+
+  printf("\n");
+  printf("Table,No.,ID,PHead,STNo.,DeltX,DeltY,Angle,Height,Skip,Speed,Explain,Note\n");
+
+  int componentNumber = 0;
+  int componentID = 1;
+
+  board(X)
+  {
+    X.elements(E) if (E.populate) {
+
+      string componentName = E.value + '-' + E.package.name;
+
+      int isSmd = 0,
+          xmax = -2147483648,
+          xmin = 2147483647,
+          ymax = xmax,
+          ymin = xmin;
+
+      E.package.contacts(C) {
+        if (C.smd && C.smd.layer == 1) {
+          isSmd = 1;
+
+          if (C.x > xmax) xmax = C.x;
+          if (C.y > ymax) ymax = C.y;
+          if (C.x < xmin) xmin = C.x;
+          if (C.y < ymin) ymin = C.y;
+        }
+      }
+
+      if (isSmd)
+      {
+		//For every SMD component on this design, look up its component info
+        componentName = setPartProfile(componentName); //This will, if possible, resolve any aliases to a known part name
+
+		
+        //Filter out stuff that is not actually SMD mounted devices
+        if (componentName == NO_MOUNT_STR)
+        {
+          //These devices are not mounted so ignore them
+        }
+        else
+        {
+          //Most all Eagle FPs are correct but we have to subtract 90 because
+          //the tapes are mounted 90 degrees from the board
+          real convertedAngle = E.angle - 90;
+
+          //However, some feeders/FPs were designed not horizontal so we correct on a component by component basis
+          convertedAngle = convertedAngle + componentRotation;
+          if (convertedAngle > 180) convertedAngle -= 360;
+
+          //The material stack contains all the feeder information. We must assign the proper feederID
+          //to this component so the machine knows where and how to pick it.
+
+          //Example output
+          //Table,No.,ID,PHead,STNo.,DeltX,DeltY,Angle,Height,Skip,Speed,Explain,Note
+          //EComponent,0,1,1,1,16.51,12.68,0,0.5,6,0,C4, 0.1uF
+
+          int mountValue = 6;
+          if (mountComponent == "False") mountValue = 7;
+
+          printf("EComponent, %d, %d, %d, %d, %.2f, %.2f, %.2f, %.2f, %d, %d, %s, %s\n",
+                 componentNumber, componentID, feederHead, feederID,
+                 u2mm((xmin + xmax) / 2) + offsetX, u2mm((ymin + ymax) / 2) + offsetY, convertedAngle, feederPickHeight,
+                 mountValue, 0, E.name, componentName); //mountValue: 6 is to place, 7 is to skip
+
+          componentNumber++;
+          componentID++;
+        }
+      }
+    }
+
+  }
+
+}
+
+//Add any IC tray info
+void addICTray()
+{
+  printf("\n");
+  printf("Table,No.,ID,CenterX,CenterY,IntervalX,IntervalY,NumX,NumY,Start\n");
+}
+
+void addPCBCalibrate()
+{
+  //Flags to say what type and if calibration of the board has been done
+  printf("\n");
+  printf("Table,No.,nType,nAlg,nFinished\n");
+  printf("PcbCalib,0,0,0,0\n");
+
+  //nType: 0 = use components as calibration marks, 1 = use marks as calibration marks
+  //nFinished: ? 0 = you haven't cal'd a board, 1 = you have cal'd the board
+}
+
+void addFiducials()
+{
+  //Adds the fiducials or mark information about this board or panel
+  //TODO - Should we pull in the marks from the PCB file? It might make better
+  //sense to have user do this manually as it will be pretty specific.
+  printf("\n");
+  printf("Table,No.,ID,offsetX,offsetY,Note\n");
+  printf("CalibPoint,0,1,3.14,12.66,Mark1\n");
+  printf("CalibPoint,1,2,22.16,12.66,Mark2\n");
+}
+
+void addCalibrationFactor()
+{
+  //Add the calibration factor. This is all the offsets calculated when the
+  //PCB is calibrated. We don't have to set anything here because the program
+  //will calculate things after user calibrates the PCB.
+
+  printf("\n");
+  printf("Table,No.,DeltX,DeltY,AlphaX,AlphaY,BetaX,BetaY,DeltaAngle\n");
+  printf("CalibFator,0,0,0,0,0,1,1,0\n"); //Typo is required
+}
+
+if (board) board(B) {
+	//By default a ULP looks for files in the \eagle\bin directory.
+	//Let's look in the directory where the ULP lives
+
+	//Based on Fudgy's code: http://www.amarketplaceofideas.com/simple-eagle-pcb-ulp-user-language-program-tutorial-to-show-the-path-of-the-ulp.htm
+	string ULP_Path;
+
+	//Remove the ulp filename from argv[0]
+	int pos = strrchr(argv[0], '/');
+	if (pos >= 0) 
+	{ 
+		ULP_Path = strsub(argv[0], 0, pos + 1);
+	}
+		
+	//Convert forward slashes to back slashes so we can run system command
+	pos = strrchr(ULP_Path, '/');
+	while (pos >= 0) 
+	{
+		ULP_Path = strsub(ULP_Path, 0, pos) + "\\\\" + strsub(ULP_Path, pos + 1, strlen(ULP_Path)); //Remove and replace
+		pos = strrchr(ULP_Path, '/'); //Look for the next forward slash
+	}
+		
+	//Attempt to update feeder file via python script
+	string commandToRun = "cmd.exe /C python " + ULP_Path + "UpdateFeederData.py " + ULP_Path; ///K to keep window open
+    if(system(commandToRun) != 0)
+	{
+		dlgMessageBox("Error: The python script to update feeders.csv failed. Continuing but feeder data may be old.", "OK");
+	}
+		  
+    numberOfFeeders = fileread(availableFeederList, ULP_Path + "feeders.csv");
+
+  if (numberOfFeeders == 0)
+  {
+    dlgMessageBox("Error: Feeder file not found. Run UpdateFeederData.py to create the feeder file.", "OK");
+    exit(0);
+  }
+
+  //We want to save the output to the folder where the Pick and Place program can see it (must be the \files\ sub directory)
+  string fileName = dlgFileSave("Save File", filesetext(B.name, ".dpv"), "*.dpv");
+  if (fileName == "") exit(0);
+
+  output(fileName) {
+    addHeader(); //Static header
+
+    addFeeders(); //Calculate the needed feeders
+
+    addBatch(); //Array of PCBs?
+
+    addComponents(); //You know, the things we're trying to place?
+
+    addICTray(); //Add any IC tray info here.
+
+    addPCBCalibrate(); //Add flag?
+
+    addFiducials(); //Add the fiducial/mark information
+
+    addCalibrationFactor(); //Add the calibration factor
+
+    string dialogMessage = "Feeders Used:\n" + listOfKnownParts;
+
+    if (newPart == "True")
+    {
+      dialogMessage = dialogMessage + "\nThe following new parts need a feeder:\n" + listOfNewParts;
+    }
+
+    dlgMessageBox(dialogMessage, "OK");
+  }
+
+} else {
+  dlgMessageBox("\n    Start this ULP in a Board    \n");
+  exit (0);
+}
+
+
