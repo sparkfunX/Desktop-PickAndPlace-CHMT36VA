@@ -25,13 +25,13 @@ Tape Size,Feeder Number,Component,XOffset,YOffset,Height,Speed,Head,Relative Tap
 12mm,24,BNO080,0,0,0.5,0,2,90,8,Y,Y,Y,0,0,BNO080-LGA-28,BNO080 IMU
 12mm,25,MLX90393,0,0,0.5,0,1,0,0,Y,Y,Y,0,0,MLX90393,
 12mm,26,,0,0,0.5,0,1,0,0,Y,Y,Y,0,0,,
-16mm,27,TXB0104-SO14,0.79,0,0.5,0,2,180,4,Y,Y,Y,0,-2,,Flexible OLED
 16mm,28,OLED-Connector,0.25,0,0.5,0,1,180,8,Y,Y,Y,0,0,OEL_1.8OEL:OEL_1.8OEL_Y3B,Flexible OLED
 24mm,29,,0,0,0.5,0,1,0,0,Y,Y,Y,0,0,,
 NoMount,,No Mount,,,,,,,,N,,,,,FIDUCIAL:SMT-JUMPER:JUMPER-SMT:SPARKX-LOGO:CC_LICENSE:OSHW-LOGO,
 Stop,,Stop,,,,,,,,,,,,,,
 ,,,,Below are known values for reels that are used periodically,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,
+16mm,27,Qwiic-Connector,0.79,0,0.5,0,2,0,12,Y,Y,Y,0,-2,SMD-1X04_1MM_RA:JST-1X04_1MM_RA:-1X04_1MM_RA:Qwiic_Connector-1X04_1MM_RA,
 8mm,1,Blank,0,0,0.5,0,1,0,0,Y,Y,Y,,,,
 8mm,,2.2k-0603,0,0,0.5,0,1,0,4,Y,Y,Y,,,,"Finger Sensor, IMU BNO080"
 12mm,23,VLNC4040,0,0,0.5,0,2,-90,4,Y,Y,Y,,,VCNL4040-VCNL4040,Finger Sensor
@@ -44,7 +44,7 @@ Stop,,Stop,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,
 4mm,1,1.0uF-0805,0,0,0.5,0,1,0,0,Y,Y,Y,0,0,,Flexible OLED
-16mm,27,Qwiic-Connector,0.79,0,0.5,0,2,0,12,Y,Y,Y,0,-2,SMD-1X04_1MM_RA:JST-1X04_1MM_RA:-1X04_1MM_RA:Qwiic_Connector-1X04_1MM_RA,
+16mm,27,TXB0104-SO14,0.79,0,0.5,0,2,180,4,Y,Y,Y,0,-2,,Flexible OLED
 12mm,23,RFD77402,0,0,0.5,0,2,90,8,Y,Y,Y,0,0,RFD77402-RFD77402,Distance sensor
 8mm,11,Yellow-0603,0,0,0.5,0,1,0,4,Y,Y,Y,0,0,YELLOW-LED-0603,
 8mm,10,Blue-0603,0,0,0.5,0,1,0,4,Y,Y,Y,0,0,BLUE-LED-0603,

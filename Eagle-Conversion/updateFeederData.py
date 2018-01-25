@@ -8,14 +8,12 @@ import os.path
 spreadsheet_key = '1PYF-mgUX6ZCsCE1asVujuJHx-Mq8295c7aTCwVem-NQ' # - this is the public key published in the tutorial
 
 #Go see if we have secret credentials
-my_file = "credentials.txt"
+my_file = sys.argv[1] + "credentials.txt"
 if os.path.isfile(my_file):
     # file exists
 	f = open(my_file, "r")
 	spreadsheet_key = f.readline()
 	f.close()
-	print("Using SparkFun's feeder data")
-	print(spreadsheet_key)
 
 print("Pulling feeder data from the net...")
 print("Sometimes this freezes. Feel free to close this window and try again.")
