@@ -19,10 +19,6 @@ Repository Contents
 * **/Software** - The various versions of the Windows based Charm High software
 * **/User-Manuals** - Various manuals from different machines in an attempt to piece together various poorly translated or documented features
 
-Library
---------------
-* **[Arduino Library](https://github.com/sparkfun/SparkFun_BNO080_Arduino_Library)** - Library for reading Quaternions, raw accel/gyro/mag, reading activity classifier, advanced configuration, etc.
-
 License Information
 -------------------
 
