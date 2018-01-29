@@ -9,6 +9,9 @@ Be sure to checkout our posts on the machine:
 
 * [Unboxing](https://www.sparkfun.com/sparkx/blog/2586)
 * [Leader Cheaters](https://www.sparkfun.com/sparkx/blog/2588)
+* [Installing the Charm High Software](https://www.sparkfun.com/sparkx/blog/2594)
+* [A better English translation](https://www.sparkfun.com/sparkx/blog/2595)
+* [An EAGLE ULP](https://www.sparkfun.com/sparkx/blog/2591) to setup new jobs on the machine quickly
 
 Repository Contents
 -------------------
