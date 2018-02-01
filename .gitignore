@@ -1,5 +1,9 @@
 # Ignore my credentials
 /Eagle-Conversion/credentials.txt
+/KiCad-Conversion/credentials.txt
+
+# Ignore compiled python files
+*.pyc
 
 # Ignore list for Eagle, a PCB layout tool
 

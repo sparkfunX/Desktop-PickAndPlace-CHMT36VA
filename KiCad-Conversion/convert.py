@@ -3,9 +3,15 @@
 # We need to give this script the position file
 # Script pulls in feeder data info from a google spreadsheet
 # Script outputs to a static file in the directory where the Pick/Place program can read it
+# Written by Nathan at SparkFun
+
+# Usage: python convert.py [file name to convert.pos] [directory that contains credentials.txt with trailing\]
+# Output will be a workFile.dpv that needs to be copy/pasted into CHJD_SMT\Files directory
 
 import sys
 import re
+
+import os.path
 
 # Used for pulling data from g spreadsheet
 import csv 
@@ -20,7 +26,22 @@ components = [] # List of components to be placed from kicad .pos
 
 # The ID from a 'Anyone with the link can view' shared level spreadsheet
 # This spreadsheet contains configurations for each different reel of components
-spreadsheet_key = '1tvBd44DQMXGxgeOJC2_oDnJoUne16QYyvfrD_V1I7Do'
+spreadsheet_key = '1PYF-mgUX6ZCsCE1asVujuJHx-Mq8295c7aTCwVem-NQ' # - this is the public key published in the tutorial
+
+#Go see if we have secret credentials
+if len(sys.argv) > 2:
+	my_file = sys.argv[2] + "credentials.txt"
+	if os.path.isfile(my_file):
+		# file exists
+		f = open(my_file, "r")
+		spreadsheet_key = f.readline()
+		f.close()
+		print("Using SparkX feeder data")
+	else:
+		print("")
+		print("Could not locate credential file at location: " + my_file)
+		print("")
+
 
 # This jogs all the components in a direction
 # Helpful if we need to adjust the entire job just a smidge
@@ -161,6 +182,8 @@ def load_component_info(component_position_file):
 
 				# Find this component in the available feeders if possible
 				components[componentCount].feeder_ID = locate_feeder_info(componentCount)
+				
+				angle_compensation = 0.0
 
 				if(components[componentCount].feeder_ID != "NoMount" and components[componentCount].feeder_ID != "NewSkip"):
 
@@ -177,42 +200,41 @@ def load_component_info(component_position_file):
 							head = available_feeders[i].head
 							break
 
+					# Correct rotations to between -180 and 180
+					components[componentCount].rotation = float(components[componentCount].rotation) - 90
+					if(components[componentCount].rotation < -180):
+						components[componentCount].rotation = components[componentCount].rotation + 180
+					
+					# Add an angle compensation to this component
+					components[componentCount].rotation = float(components[componentCount].rotation) + float(angle_compensation)
 
-				# Correct rotations to between -180 and 180
-				components[componentCount].rotation = float(components[componentCount].rotation) - 90
-				if(components[componentCount].rotation < -180):
-					components[componentCount].rotation = components[componentCount].rotation + 180
-				
-				# Add an angle compensation to this component
-				components[componentCount].rotation = float(components[componentCount].rotation) + float(angle_compensation)
+					# There are some components that have a centroid point in the wrong place (Qwiic Connector)
+					# If this component has a correction, use it
+					if(components[componentCount].feeder_ID != "NoMount" and components[componentCount].feeder_ID != "NewSkip"):
+					
+						# Correct the coordinates of this component
+						if(float(components[componentCount].rotation) == -180.0):
+							components[componentCount].x = float(components[componentCount].x) + float(centroid_correction_y)
+							components[componentCount].y = float(components[componentCount].y) + float(centroid_correction_x)
+						elif(float(components[componentCount].rotation) == 180.0): # Duplicate of first
+							components[componentCount].x = float(components[componentCount].x) + float(centroid_correction_y)
+							components[componentCount].y = float(components[componentCount].y) + float(centroid_correction_x)
+						elif(float(components[componentCount].rotation) == -90.0):
+							components[componentCount].y = float(components[componentCount].y) + float(centroid_correction_y)
+							components[componentCount].x = float(components[componentCount].x) + float(centroid_correction_x)
+						elif(float(components[componentCount].rotation) == 0.0):
+							components[componentCount].x = float(components[componentCount].x) - float(centroid_correction_y)
+							components[componentCount].y = float(components[componentCount].y) - float(centroid_correction_x)
+						elif(float(components[componentCount].rotation) == 90.0):
+							components[componentCount].y = float(components[componentCount].y) - float(centroid_correction_y)
+							components[componentCount].x = float(components[componentCount].x) - float(centroid_correction_x)
 
-				# There are some components that have a centroid point in the wrong place (Qwiic Connector)
-				# If this component has a correction, use it
-				if(components[componentCount].feeder_ID != "NoMount" and components[componentCount].feeder_ID != "NewSkip"):
-				
-					# Correct the coordinates of this component
-					if(float(components[componentCount].rotation) == -180.0):
-						components[componentCount].x = float(components[componentCount].x) + float(centroid_correction_y)
-						components[componentCount].y = float(components[componentCount].y) + float(centroid_correction_x)
-					elif(float(components[componentCount].rotation) == 180.0): # Duplicate of first
-						components[componentCount].x = float(components[componentCount].x) + float(centroid_correction_y)
-						components[componentCount].y = float(components[componentCount].y) + float(centroid_correction_x)
-					elif(float(components[componentCount].rotation) == -90.0):
-						components[componentCount].y = float(components[componentCount].y) + float(centroid_correction_y)
-						components[componentCount].x = float(components[componentCount].x) + float(centroid_correction_x)
-					elif(float(components[componentCount].rotation) == 0.0):
-						components[componentCount].x = float(components[componentCount].x) - float(centroid_correction_y)
-						components[componentCount].y = float(components[componentCount].y) - float(centroid_correction_x)
-					elif(float(components[componentCount].rotation) == 90.0):
-						components[componentCount].y = float(components[componentCount].y) - float(centroid_correction_y)
-						components[componentCount].x = float(components[componentCount].x) - float(centroid_correction_x)
-
-				# Add any global corrections
-				components[componentCount].y = float(components[componentCount].y) - global_y_adjust
-				components[componentCount].x = float(components[componentCount].x) - global_x_adjust
-				
-				# Assign pick head
-				components[componentCount].head = head
+					# Add any global corrections
+					components[componentCount].y = float(components[componentCount].y) - global_y_adjust
+					components[componentCount].x = float(components[componentCount].x) - global_x_adjust
+					
+					# Assign pick head
+					components[componentCount].head = head
 
 				componentCount = componentCount + 1
 			line = fp.readline() # Get the next line
@@ -411,8 +433,7 @@ def main():
 			print available_feeders[i].feeder_ID + ") " + available_feeders[i].device_name
 	
 	# Output to machine recipe file
-	# f = open("C:\\Users\\nathan.seidle\\Dropbox\\PickPlace\\CHJD_SMT\\Files\\out.dpv", 'w')
-	f = open("\\Dropbox\\PickPlace\\CHJD_SMT\\Files\\out.dpv", 'w')
+	f = open("workFile.dpv", 'w')
 	add_header(f)
 
 	add_feeders(f)
