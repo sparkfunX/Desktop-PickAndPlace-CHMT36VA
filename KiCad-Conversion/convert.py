@@ -5,6 +5,10 @@
 # Script outputs to a static file in the directory where the Pick/Place program can read it
 # Written by Nathan at SparkFun
 
+#Before you export your POS you must do two things:
+#1) Drop a engineering dot in the lower left corner of your board. This will align all the component coordinates with 0,0 on the machine.
+#2) When you output the POS file force the export of all components.
+
 # Usage: python convert.py [file name to convert.pos] [directory that contains credentials.txt with trailing\]
 # Output will be a workFile.dpv that needs to be copy/pasted into CHJD_SMT\Files directory
 
@@ -451,7 +455,5 @@ def main():
 	add_calibration_factor(f)
 
 	f.close
-
-
 
 main()
