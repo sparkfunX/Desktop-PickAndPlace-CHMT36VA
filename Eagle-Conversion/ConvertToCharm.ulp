@@ -3,19 +3,37 @@
 "Generates a .dpv work file for CharmHigh Pick and Place Machines"
 "<author>Author: Nathan</author>"
 
+
+#include "Include_String.ulp"
+
+
 // THIS PROGRAM IS PROVIDED AS IS AND WITHOUT WARRANTY OF ANY KIND, EXPRESSED OR IMPLIED
 
 //Sometimes you just need to jog everything
 real offsetY = 0.0; //0.5 = move everything up 0.5mm
 real offsetX = 0.0; //0.5 = move everything to right 0.5mm
 
+string pnpName[];
+string pnpDesignator[];
+int    pnpX[];
+int    pnpY[];
+real   pnpAngle[];
+int    pnpFeeder[];
+int    pnpPos[];    //Top or bottom
+int    pnpCount;    
+int    pnpStatsPartsTotal;
+int    pnpStatsPartsOk;
+int    pnpStatsPartsNew;
+int    pnpStatsPartsDnp;
+
+
 
 string usedFeederList[]; //Keeps track of the components in the feeders
 string availableFeederList[];
+string availableFeederHeadline;
 int numberOfFeeders;
 
 string hasFiducials = "False"; //Goes true when board has fiducials located
-
 
 int feederID = 0; //The tape this part assigned to
 real feederXOffset = 0.0; //In mm. Offset from the default pick point
@@ -81,7 +99,7 @@ int locateFeederNumber(string partName)
     string feederData[];
     strsplit(feederData, thisLine, ',');
 
-	//dlgMessageBox(feederData[2] + " "+ partName);
+	  //dlgMessageBox(feederData[2] + " "+ partName);
 	
     if (feederData[2] == partName)
     {
@@ -118,11 +136,12 @@ int locateFeederNumber(string partName)
     if (feederData[2] == "Stop")
     {
       //We hit the end of the list, we didn't find it.
-      return (NEW_SKIP);
+      return NO_MOUNT;  //We don't want to mount parts that we don't have in feeders
+      //return (NEW_SKIP);
     }
   }
 
-  dlgMessageBox("Error in feeder lookup: You shouldn't be here", "OK");
+  //dlgMessageBox("Error in feeder lookup: You shouldn't be here", "OK");
   return (NEW_SKIP); //We should not get here
 }
 
@@ -430,77 +449,229 @@ void addCalibrationFactor()
   printf("CalibFator,0,0,0,0,0,1,1,0\n"); //Typo is required
 }
 
-if (board) board(B) {
-	//By default a ULP looks for files in the \eagle\bin directory.
-	//Let's look in the directory where the ULP lives
-
-	//Based on Fudgy's code: http://www.amarketplaceofideas.com/simple-eagle-pcb-ulp-user-language-program-tutorial-to-show-the-path-of-the-ulp.htm
-	string ULP_Path;
-
-	//Remove the ulp filename from argv[0]
-	int pos = strrchr(argv[0], '/');
-	if (pos >= 0) 
-	{ 
-		ULP_Path = strsub(argv[0], 0, pos + 1);
-	}
-		
-	//Convert forward slashes to back slashes so we can run system command
-	pos = strrchr(ULP_Path, '/');
-	while (pos >= 0) 
-	{
-		ULP_Path = strsub(ULP_Path, 0, pos) + "\\\\" + strsub(ULP_Path, pos + 1, strlen(ULP_Path)); //Remove and replace
-		pos = strrchr(ULP_Path, '/'); //Look for the next forward slash
-	}
-		
-	//Attempt to update feeder file via python script
-	string commandToRun = "cmd.exe /C python " + ULP_Path + "UpdateFeederData.py " + ULP_Path; ///K to keep window open
-    if(system(commandToRun) != 0)
-	{
-		dlgMessageBox("Error: The python script to update feeders.csv failed. Continuing but feeder data may be old.", "OK");
-	}
-		  
-    numberOfFeeders = fileread(availableFeederList, ULP_Path + "feeders.csv");
-
-  if (numberOfFeeders == 0)
-  {
-    dlgMessageBox("Error: Feeder file not found. Run UpdateFeederData.py to create the feeder file.", "OK");
-    exit(0);
-  }
-
-  //We want to save the output to the folder where the Pick and Place program can see it (must be the \files\ sub directory)
-  string fileName = dlgFileSave("Save File", filesetext(B.name, ".dpv"), "*.dpv");
-  if (fileName == "") exit(0);
-
-  output(fileName) {
-    addHeader(); //Static header
-
-    addFeeders(); //Calculate the needed feeders
-
-    addBatch(); //Array of PCBs?
-
-    addComponents(); //You know, the things we're trying to place?
-
-    addICTray(); //Add any IC tray info here.
-
-    addPCBCalibrate(); //Add flag?
-
-    addFiducials(); //Add the fiducial/mark information
-
-    addCalibrationFactor(); //Add the calibration factor
-
-    string dialogMessage = "Feeders Used:\n" + listOfKnownParts;
-
-    if (newPart == "True")
+void downloadFeederData(){
+    string spreadsheet_key = "1Ji8-ulmfizbTw11OVJ1ojtQojZbGBaaUEyQ4R7oua1U";
+    numberOfFeeders = netget(availableFeederList, "https://docs.google.com/spreadsheet/ccc?key=" + spreadsheet_key + "&output=csv");
+    if (numberOfFeeders == 0)
     {
-      dialogMessage = dialogMessage + "\nThe following new parts need a feeder:\n" + listOfNewParts;
+      dlgMessageBox("Error: Feeder file not found. Run UpdateFeederData.py to create the feeder file.", "OK");
+      exit(0);
     }
 
-    dlgMessageBox(dialogMessage, "OK");
+    availableFeederHeadline = stringReplace(availableFeederList[0], ",", "\t");
+
+    //Process feeder data to be TSV instead of CSV
+    for(int i = 1; i < numberOfFeeders; i++){
+      availableFeederList[i-1] = stringReplace(availableFeederList[i], ",", " \t");
+    }
+    availableFeederList[numberOfFeeders-1] = "";
+    numberOfFeeders--;
+
+}
+//Indicies to the online table
+int ROW_FEEDERID  = 1;
+int ROW_COMPNAME  = 2;
+int ROW_XOFFSET   = 3;
+int ROW_YOFFSET   = 4;
+int ROW_HEIGHT    = 5;
+int ROW_SPEED     = 6;
+int ROW_HEAD      = 7;
+int ROW_RELTAPE   = 8;
+int ROW_SPACING   = 9;
+int ROW_PLACE     = 10;
+int ROW_CHECK_VAC = 11;
+int ROW_USE_VISION= 12; 
+int ROW_ALIAS     = 15; 
+
+int MAX_FEEDER    = 29;
+
+string getFeederParameterByLine(int line, int row){
+  string feederData[];
+  strsplit(feederData, availableFeederList[line], '\t'); 
+  return feederData[row];
+}
+
+string getFeederParameter(int feeder, int row){
+  //Check if the table is aligned correctly (line 1 is feeder 1)
+  if(strtod(getFeederParameterByLine(feeder-1, ROW_FEEDERID)) == feeder){
+    return getFeederParameterByLine(feeder-1, row);
   }
 
-} else {
-  dlgMessageBox("\n    Start this ULP in a Board    \n");
-  exit (0);
+  //If not aligned, we need to work harder
+  for(int i = 0; i < numberOfFeeders; i++){
+    if(strtod(getFeederParameterByLine(i, ROW_FEEDERID)) == feeder){
+      return getFeederParameterByLine(i, row);
+    }
+  }    
+  return "";
+}
+
+int getFeederId(string name) {
+  for(int i = 1; i <= MAX_FEEDER; i++){
+    string fname   = getFeederParameter(i, ROW_COMPNAME);
+    string falias  = getFeederParameter(i, ROW_ALIAS); 
+
+    //Check component name
+    if(fname == name){
+      return i;
+    }
+
+    //Check aliases 
+    string aliases[];
+    int cnt = strsplit(aliases, falias, ':');     
+    for(int k = 0; k < cnt; k++){
+      if(stringTrim(aliases[k]) == name){
+        return i;
+      }
+    }
+  }
+  return -1;
+}
+
+void loadBoardInformation() {
+  pnpCount            = 0;
+  pnpStatsPartsTotal  = 0;
+  pnpStatsPartsOk     = 0;
+  pnpStatsPartsNew    = 0;
+  pnpStatsPartsDnp    = 0;
+
+  board(X) {
+    X.elements(E) {
+
+      int isSmd = 0;
+      int isBottom = 0;
+
+      E.package.contacts(C) {
+        if (C.smd && C.smd.layer == 1) {
+          isSmd = 1;
+        }
+        if (C.smd && C.smd.layer == 16) {
+          isSmd = 1;
+          isBottom = 1;
+        }
+      }
+
+      if (isSmd) {
+        pnpName[pnpCount]       = E.value + '-' + E.package.name;
+        pnpDesignator[pnpCount] = E.name;
+        pnpX[pnpCount]          = E.x;
+        pnpY[pnpCount]          = E.y;
+        pnpAngle[pnpCount]      = E.angle;
+        pnpPos[pnpCount]        = isBottom;
+
+        if(E.populate && E.attribute["POPULATE"] != "DNP"){
+          pnpFeeder[pnpCount]     = getFeederId(pnpName[pnpCount]);
+        } else {
+          pnpFeeder[pnpCount]   = -2;
+        }
+
+        pnpStatsPartsTotal++;
+        if(pnpFeeder[pnpCount] == -1){
+          pnpStatsPartsNew++;
+        } else if(pnpFeeder[pnpCount] == -2){
+          pnpStatsPartsDnp++;
+        } else {
+          pnpStatsPartsOk++;
+        }
+
+
+        pnpCount++;
+      }
+    } 
+  }
+
+
+
 }
 
 
+void writeOutputFile() {
+  /*
+    output(fileName) {
+      addHeader(); //Static header
+      addFeeders(); //Calculate the needed feeders
+      addBatch(); //Array of PCBs?
+      addComponents(); //You know, the things we're trying to place?
+      addICTray(); //Add any IC tray info here.
+      addPCBCalibrate(); //Add flag?
+      addFiducials(); //Add the fiducial/mark information
+      addCalibrationFactor(); //Add the calibration factor
+    }  
+    */
+}
+
+
+int showListOfDevices()
+{
+  int selected = 0;
+  int sorted = 0;
+  int quantity = 1;
+
+
+  downloadFeederData();
+
+  //bomLoadData();
+  while(1)
+  {
+    loadBoardInformation();
+
+    string partlist[];
+    for(int i = 0; i < pnpCount; i++){
+      partlist[i] = "";
+      string feeder = "";
+      if(pnpFeeder[i] == -1){
+        feeder = "No feeder assigned!";
+      } else if(pnpFeeder[i] == -2){
+        feeder = "Do not mount!";
+      } else {
+        sprintf(feeder, "%d", pnpFeeder[i]);
+      }
+
+      sprintf(partlist[i], "%s\t%s\t%s\t%.2fmm\t%.2fmm\t%.1f°\t%s", pnpDesignator[i], pnpName[i], (pnpPos[i]==0)?"Top":"Bottom", u2mm(pnpX[i]), u2mm(pnpY[i]), pnpAngle[i], feeder);
+    }
+  
+    int dstatus = dlgDialog("Feeder configuration"){
+      dlgHBoxLayout{
+        dlgVBoxLayout dlgSpacing(800);
+        dlgTabWidget {
+          dlgTabPage("Parts overview") {
+            dlgListView("Designator\tComponent\tPosition\tPos X\tPos Y\tAngle\tFeeder", partlist, selected, sorted){
+              dlgAccept();
+            }
+          }
+          dlgTabPage("Feeder config") {
+            dlgListView(availableFeederHeadline, availableFeederList, selected, sorted){
+              dlgAccept();
+            }
+          }
+        }
+        dlgVBoxLayout {
+          dlgGroup("Statistics") { 
+               dlgHBoxLayout{ dlgLabel("Parts total:\t");   dlgLabel(itoa(pnpStatsPartsTotal)); }
+               dlgHBoxLayout{ dlgLabel("Parts ok:\t\t");   dlgLabel(itoa(pnpStatsPartsOk)); }
+               dlgHBoxLayout{ dlgLabel("Parts not assigned:\t");   dlgLabel(itoa(pnpStatsPartsNew)); }
+               dlgHBoxLayout{ dlgLabel("Parts not mounted:\t");   dlgLabel(itoa(pnpStatsPartsDnp)); }
+          }
+          dlgGroup("Operations") {
+             dlgPushButton("Refresh Feeder List") {
+              downloadFeederData();
+              dlgAccept();
+            }           
+          }
+          dlgStretch(1);
+        }
+      }
+    };
+
+    if(dstatus == -1){break;}
+  }
+
+  return 1;
+}
+
+if (!board) {
+    dlgMessageBox("\n    Start this ULP in a Board    \n");
+    exit (0);  
+} else {
+    showListOfDevices();
+}
