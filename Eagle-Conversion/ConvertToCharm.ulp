@@ -357,6 +357,9 @@ void addComponents(int position)
       //the tapes are mounted 90 degrees from the board
       real convertedAngle = pnpAngle[i] - 90;
       //However, some feeders/FPs were designed not horizontal so we correct on a component by component basis
+	  real componentRotation = strtod(getFeederParameter(pnpFeeder[i], ROW_RELTAPE));
+	  convertedAngle = convertedAngle + componentRotation;
+	  
       if (convertedAngle > 180) convertedAngle -= 360;
 
       int speed = strtol(getFeederParameter(pnpFeeder[i], ROW_SPEED));
