@@ -51,14 +51,14 @@ int ROW_ALIAS     = 3;      string NAME_ALIAS       = "Aliases"            ; str
 int ROW_XOFFSET   = 4;      string NAME_XOFFSET     = "XOffset"            ; string DEFAULT_XOFFSET     = "0";
 int ROW_YOFFSET   = 5;      string NAME_YOFFSET     = "YOffset"            ; string DEFAULT_YOFFSET     = "0";
 int ROW_HEIGHT    = 6;      string NAME_HEIGHT      = "Height"             ; string DEFAULT_HEIGHT      = "0.5";
-int ROW_LENGTH    = 7;      string NAME_LENGTH      = "Length"             ; string DEFAULT_LENGTH      = "0.1";
-int ROW_WIDTH     = 8;      string NAME_WIDTH       = "Width"              ; string DEFAULT_WIDTH       = "0.1";
-int ROW_SPEED     = 9;      string NAME_SPEED       = "Speed"              ; string DEFAULT_SPEED       = "100";
+int ROW_LENGTH    = 7;      string NAME_LENGTH      = "Length"             ; string DEFAULT_LENGTH      = "0.0";
+int ROW_WIDTH     = 8;      string NAME_WIDTH       = "Width"              ; string DEFAULT_WIDTH       = "0.0";
+int ROW_SPEED     = 9;      string NAME_SPEED       = "Speed"              ; string DEFAULT_SPEED       = "0";
 int ROW_HEAD      = 10;     string NAME_HEAD        = "Head"               ; string DEFAULT_HEAD        = "1";
 int ROW_RELTAPE   = 11;     string NAME_RELTAPE     = "Relative Tape Angle"; string DEFAULT_RELTAPE     = "0";
-int ROW_SPACING   = 12;     string NAME_SPACING     = "Feed Spacing"       ; string DEFAULT_SPACING     = "2";
+int ROW_SPACING   = 12;     string NAME_SPACING     = "Feed Spacing"       ; string DEFAULT_SPACING     = "4";
 int ROW_PLACE     = 13;     string NAME_PLACE       = "Place Component"    ; string DEFAULT_PLACE       = "Y";
-int ROW_CHECK_VAC = 14;     string NAME_CHECK_VAC   = "Check Vacuum"       ; string DEFAULT_CHECK_VAC   = "N";
+int ROW_CHECK_VAC = 14;     string NAME_CHECK_VAC   = "Check Vacuum"       ; string DEFAULT_CHECK_VAC   = "Y";
 int ROW_USE_VISION= 15;     string NAME_USE_VISION  = "Use Vision"         ; string DEFAULT_USE_VISION  = "Y"; 
 
 int MAX_FEEDER    = 29;
