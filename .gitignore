@@ -1,5 +1,5 @@
 # Ignore my credentials
-/Eagle-Conversion/credentials.txt
+/Eagle-Conversion/ConvertToCharm.cfg
 /KiCad-Conversion/credentials.txt
 
 # Ignore compiled python files
