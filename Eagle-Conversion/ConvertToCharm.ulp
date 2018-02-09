@@ -1,44 +1,217 @@
-#usage "<b>Data generation for mounting machines</b>\n"
+﻿#usage "<b>Generates Pick and Place data for Charmhigh machines</b>\n"
 "<p>"
 "Generates a .dpv work file for CharmHigh Pick and Place Machines"
-"<author>Author: Nathan</author>"
+"<author>Author: Nathan Seidle, nathan@sparkfun.com</author>"
+"<author>Author: Bernhard Woerndl-Aichriedler, bwa@xdevelop.at</author>"
 
+#include "Include_String.ulp"
 // THIS PROGRAM IS PROVIDED AS IS AND WITHOUT WARRANTY OF ANY KIND, EXPRESSED OR IMPLIED
 
-//Sometimes you just need to jog everything
-real offsetY = 0.0; //0.5 = move everything up 0.5mm
-real offsetX = 0.0; //0.5 = move everything to right 0.5mm
 
+//Config options we want to save
+real      offsetY             = 0.0; 
+real      offsetX             = 0.0;
+int       enableTop           = 1;
+int       enableBottom        = 1;
+int       feederListMode      = 1;
+string    feederListUrl       = "https://docs.google.com/spreadsheet/ccc?output=csv&key=" + "1PYF-mgUX6ZCsCE1asVujuJHx-Mq8295c7aTCwVem-NQ";
+string    feederCSV           = "feeders.csv";
+int       autodetectColumns   = 1;
+int       flipHorizontal      = 1;
 
-string usedFeederList[]; //Keeps track of the components in the feeders
-string availableFeederList[];
-int numberOfFeeders;
+string pnpName[];
+string pnpDesignator[];
+int    pnpX[];
+int    pnpY[];
+real   pnpAngle[];
+int    pnpFeeder[];
+int    pnpPos[];    //Top or bottom
+int    pnpCount;    
+int    pnpStatsPartsTotal;
+int    pnpStatsPartsOk;
+int    pnpStatsPartsNew;
+int    pnpStatsPartsDnp;
+string pnpBasefile;
 
-string hasFiducials = "False"; //Goes true when board has fiducials located
+string  usedFeederList[]; //Keeps track of the components in the feeders
+string  availableFeederList[];
+string  availableFeederHeadline;
+int     numberOfFeeders;
 
+int maxX = 0;
+int minX = 0;
+int maxY = 0;
+int minY = 0;
+int initialized = 0;
 
-int feederID = 0; //The tape this part assigned to
-real feederXOffset = 0.0; //In mm. Offset from the default pick point
-real feederYOffset = 0.0;
-int feederFeedDistance = 4; //mm between components on tape. 2, 4, 8, 12, 16, or 24mm. Most 8mm wide tapes are 4mm between components.
-real feederPickHeight = 0.5; //In mm. 0.5 is default.
-int feederPickSpeed = 0; //1 to 100%. 0 will follow master control.
-real componentSizeX = 0.1; //Size of component in mm
-real componentSizeY = 0.1;
-int feederHead = 1; //There are two heads: 1 or 2
-int componentRotation = 0; //If the eagle FP is created different from how the IC is packaged in the tape, this offset unites the two.
-string mountComponent = "True"; //Most components will be mounted
+//Indicies to the online table
+int ROW_FEEDERID  = 1;      string NAME_FEEDERID    = "Feeder Number"      ; string DEFAULT_FEEDERID    = "0";
+int ROW_COMPNAME  = 2;      string NAME_COMPNAME    = "Component"          ; string DEFAULT_COMPNAME    = "";
+int ROW_ALIAS     = 3;      string NAME_ALIAS       = "Aliases"            ; string DEFAULT_ALIAS       = ""; 
+int ROW_XOFFSET   = 4;      string NAME_XOFFSET     = "XOffset"            ; string DEFAULT_XOFFSET     = "0";
+int ROW_YOFFSET   = 5;      string NAME_YOFFSET     = "YOffset"            ; string DEFAULT_YOFFSET     = "0";
+int ROW_HEIGHT    = 6;      string NAME_HEIGHT      = "Height"             ; string DEFAULT_HEIGHT      = "0.5";
+int ROW_LENGTH    = 7;      string NAME_LENGTH      = "Length"             ; string DEFAULT_LENGTH      = "0.1";
+int ROW_WIDTH     = 8;      string NAME_WIDTH       = "Width"              ; string DEFAULT_WIDTH       = "0.1";
+int ROW_SPEED     = 9;      string NAME_SPEED       = "Speed"              ; string DEFAULT_SPEED       = "100";
+int ROW_HEAD      = 10;     string NAME_HEAD        = "Head"               ; string DEFAULT_HEAD        = "1";
+int ROW_RELTAPE   = 11;     string NAME_RELTAPE     = "Relative Tape Angle"; string DEFAULT_RELTAPE     = "0";
+int ROW_SPACING   = 12;     string NAME_SPACING     = "Feed Spacing"       ; string DEFAULT_SPACING     = "2";
+int ROW_PLACE     = 13;     string NAME_PLACE       = "Place Component"    ; string DEFAULT_PLACE       = "Y";
+int ROW_CHECK_VAC = 14;     string NAME_CHECK_VAC   = "Check Vacuum"       ; string DEFAULT_CHECK_VAC   = "N";
+int ROW_USE_VISION= 15;     string NAME_USE_VISION  = "Use Vision"         ; string DEFAULT_USE_VISION  = "Y"; 
 
-string newPart = "False"; //Goes true when a component is not found in setPartProfile()
-string listOfNewParts = ""; //String of all the new parts not found in partProfile list
+int MAX_FEEDER    = 29;
+int FEEDER_NEW    = -1;
+int FEEDER_DNP    = 0;
 
-string listOfKnownParts = ""; //String of all the feeders used
+string configFile  = filesetext(argv[0], ".cfg");
 
-int NO_MOUNT = 30;
-string NO_MOUNT_STR = "No Mount";
-int NEW_SKIP = 31;
+void configWrite(){
+  output(configFile){
+    printf("%.5f\n", offsetX);
+    printf("%.5f\n", offsetY);
+    printf("%d\n",   enableTop);
+    printf("%d\n",   enableBottom);
+    printf("%d\n",   feederListMode);
+    printf("%s\n",   feederListUrl);
+    printf("%s\n",   feederCSV);
+    printf("%d\n",   autodetectColumns);
+    printf("%d\n",   flipHorizontal);
+  }
+}
 
-//TODO Add flags for check vacuum and check vision of a given feeder
+void configRead() {
+  if(filesize(configFile)){ //Check if file exists
+    string data[];
+    int line = fileread(data, configFile);
+    if(line >= 5){
+      offsetX            = strtod(data[0]);
+      offsetY            = strtod(data[1]);
+      enableTop          = strtol(data[2]);
+      enableBottom       = strtol(data[3]);
+      feederListMode     = strtol(data[4]);
+      feederListUrl      = data[5];
+      feederCSV          = data[6];
+      autodetectColumns  = strtol(data[7]);
+      flipHorizontal     = strtol(data[8]);
+    }
+  }
+}
+
+void addFeederColum(string name, string value){
+  sprintf(availableFeederHeadline, "%s\t%s", availableFeederHeadline, name);
+  for(int i = 0; i < numberOfFeeders; i++){
+    sprintf(availableFeederList[i], "%s\t%s", availableFeederList[i], value);
+  }
+}
+
+void parseRowsByHeader(){
+  string columns[];
+  int count = strsplit(columns, availableFeederHeadline, '\t');
+
+  //Invalidate row indices
+  ROW_FEEDERID  = -1;
+  ROW_COMPNAME  = -1;
+  ROW_ALIAS     = -1; 
+  ROW_XOFFSET   = -1;
+  ROW_YOFFSET   = -1;
+  ROW_HEIGHT    = -1;
+  ROW_LENGTH    = -1;
+  ROW_WIDTH     = -1;
+  ROW_SPEED     = -1;
+  ROW_HEAD      = -1;
+  ROW_RELTAPE   = -1;
+  ROW_SPACING   = -1;
+  ROW_PLACE     = -1;
+  ROW_CHECK_VAC = -1;
+  ROW_USE_VISION= -1; 
+
+  //Check what column contains what value
+  for(int i = 0; i < count; i++){
+    string col = stringTrim(columns[i]);
+    //Switch would be nicer here, but eagle doesn't allow for string cases
+    if(col == NAME_FEEDERID   ){ROW_FEEDERID    = i;}
+    if(col == NAME_COMPNAME   ){ROW_COMPNAME    = i;}
+    if(col == NAME_ALIAS      ){ROW_ALIAS       = i;}
+    if(col == NAME_XOFFSET    ){ROW_XOFFSET     = i;}
+    if(col == NAME_YOFFSET    ){ROW_YOFFSET     = i;}
+    if(col == NAME_HEIGHT     ){ROW_HEIGHT      = i;}
+    if(col == NAME_LENGTH     ){ROW_LENGTH      = i;}
+    if(col == NAME_WIDTH      ){ROW_WIDTH       = i;}
+    if(col == NAME_SPEED      ){ROW_SPEED       = i;}
+    if(col == NAME_HEAD       ){ROW_HEAD        = i;}
+    if(col == NAME_RELTAPE    ){ROW_RELTAPE     = i;}
+    if(col == NAME_SPACING    ){ROW_SPACING     = i;}
+    if(col == NAME_PLACE      ){ROW_PLACE       = i;}
+    if(col == NAME_CHECK_VAC  ){ROW_CHECK_VAC   = i;}
+    if(col == NAME_USE_VISION ){ROW_USE_VISION  = i;}
+    
+  }
+
+  //Fill up everything with default data, if not given
+  if(ROW_FEEDERID   == -1){ addFeederColum(NAME_FEEDERID  , DEFAULT_FEEDERID  ); ROW_FEEDERID   = count++;}
+  if(ROW_COMPNAME   == -1){ addFeederColum(NAME_COMPNAME  , DEFAULT_COMPNAME  ); ROW_COMPNAME   = count++;}
+  if(ROW_ALIAS      == -1){ addFeederColum(NAME_ALIAS     , DEFAULT_ALIAS     ); ROW_ALIAS      = count++;}
+  if(ROW_XOFFSET    == -1){ addFeederColum(NAME_XOFFSET   , DEFAULT_XOFFSET   ); ROW_XOFFSET    = count++;}
+  if(ROW_YOFFSET    == -1){ addFeederColum(NAME_YOFFSET   , DEFAULT_YOFFSET   ); ROW_YOFFSET    = count++;}
+  if(ROW_HEIGHT     == -1){ addFeederColum(NAME_HEIGHT    , DEFAULT_HEIGHT    ); ROW_HEIGHT     = count++;}
+  if(ROW_LENGTH     == -1){ addFeederColum(NAME_LENGTH    , DEFAULT_LENGTH    ); ROW_LENGTH     = count++;}
+  if(ROW_WIDTH      == -1){ addFeederColum(NAME_WIDTH     , DEFAULT_WIDTH     ); ROW_WIDTH      = count++;}
+  if(ROW_SPEED      == -1){ addFeederColum(NAME_SPEED     , DEFAULT_SPEED     ); ROW_SPEED      = count++;}
+  if(ROW_HEAD       == -1){ addFeederColum(NAME_HEAD      , DEFAULT_HEAD      ); ROW_HEAD       = count++;}
+  if(ROW_RELTAPE    == -1){ addFeederColum(NAME_RELTAPE   , DEFAULT_RELTAPE   ); ROW_RELTAPE    = count++;}
+  if(ROW_SPACING    == -1){ addFeederColum(NAME_SPACING   , DEFAULT_SPACING   ); ROW_SPACING    = count++;}
+  if(ROW_PLACE      == -1){ addFeederColum(NAME_PLACE     , DEFAULT_PLACE     ); ROW_PLACE      = count++;}
+  if(ROW_CHECK_VAC  == -1){ addFeederColum(NAME_CHECK_VAC , DEFAULT_CHECK_VAC ); ROW_CHECK_VAC  = count++;}
+  if(ROW_USE_VISION == -1){ addFeederColum(NAME_USE_VISION, DEFAULT_USE_VISION); ROW_USE_VISION = count++;}
+
+}
+
+string getFeederParameterByLine(int line, int row){
+  string feederData[];
+  strsplit(feederData, availableFeederList[line], '\t'); 
+  return feederData[row];
+}
+
+string getFeederParameter(int feeder, int row){
+  //Check if the table is aligned correctly (line 1 is feeder 1)
+  if(feeder > 0) {
+    if(strtod(getFeederParameterByLine(feeder-1, ROW_FEEDERID)) == feeder){
+      return getFeederParameterByLine(feeder-1, row);
+    }
+  }
+
+  //If not aligned, we need to work harder
+  for(int i = 0; i < numberOfFeeders; i++){
+    if(strtod(getFeederParameterByLine(i, ROW_FEEDERID)) == feeder){
+      return getFeederParameterByLine(i, row);
+    }
+  }    
+  return "";
+}
+
+int getFeederId(string name) {
+  for(int i = 0; i <= MAX_FEEDER; i++){
+    string fname   = getFeederParameter(i, ROW_COMPNAME);
+    string falias  = getFeederParameter(i, ROW_ALIAS); 
+
+    //Check component name
+    if(stringTrim(fname) == name){
+      return i;
+    }
+
+    //Check aliases 
+    string aliases[];
+    int cnt = strsplit(aliases, falias, ':');     
+    for(int k = 0; k < cnt; k++){
+      if(stringTrim(aliases[k]) == name){
+        return i;
+      }
+    }
+  }
+  return -1;
+}
 
 //Adds the opening header information to the dpv file
 void addHeader()
@@ -53,226 +226,62 @@ void addHeader()
   printf("\n");
 }
 
-//Add this feeder name and ID to the used feeder list
-void addFeederToList(string partName, int feederID)
-{
-  //See if this is already in the list
-  int pos = strstr(listOfKnownParts, partName);
-
-  if (pos == -1)
-  {
-    string newFeederID = "";
-    sprintf(newFeederID, "%d", feederID);
-    listOfKnownParts = listOfKnownParts + newFeederID + ") " + partName + '\n';
-  }
-}
-
-//Given a component ID, try to find its name in the available feeders
-//Search the feeder list of aliases as well
-//Returns the ID of the feeder
-int locateFeederNumber(string partName)
-{
-  //Search the list of feeders for this part name
-  int feederNumber;
-  for (feederNumber = 0 ; feederNumber < numberOfFeeders ; feederNumber++)
-  {
-    string thisLine = availableFeederList[feederNumber];
-
-    string feederData[];
-    strsplit(feederData, thisLine, ',');
-
-	//dlgMessageBox(feederData[2] + " "+ partName);
-	
-    if (feederData[2] == partName)
-    {
-      return (feederNumber);
-    }
-
-    //Check aliases
-    //Take what's in column 15 and split it up, then search it
-    string aliases[];
-    int count = strsplit(aliases, feederData[15], ':');
-
-    for (int y = 0 ; y < count ; y++)
-    {
-	  if(aliases[y] != "") //The strsplit above returns some weird records with zero length, ignore them
-	  {
-		  //See if this alias is anywhere within the partName
-		  int pos = strstr(partName, aliases[y]);
-		  if (pos != -1) //This alias has been found in the partName
-		  {
-
-			if (feederData[2] == NO_MOUNT_STR)
-			{
-				//This is an alias for a non-mount device
-				return (NO_MOUNT);
-			}
-			else
-			{
-				return (feederNumber); //Return this feeder number
-			}
-		  }
-		 }
-    }
-
-    if (feederData[2] == "Stop")
-    {
-      //We hit the end of the list, we didn't find it.
-      return (NEW_SKIP);
-    }
-  }
-
-  dlgMessageBox("Error in feeder lookup: You shouldn't be here", "OK");
-  return (NEW_SKIP); //We should not get here
-}
-
-//Given a part name set the various feeder aspects
-string setPartProfile(string partName)
-{
-  //Find the line in the feeder file that contains this partName
-  int lineNumber = locateFeederNumber(partName);
-
-  //Set the part specs
-  if (lineNumber == NO_MOUNT)
-  {
-    //Do nothing with this part
-    return (NO_MOUNT_STR);
-  }
-  else if (lineNumber == NEW_SKIP)
-  {
-    //New, unidentified component. Use defaults.
-    newPart = "True";
-
-    //See if this is already in the list
-    int pos = strstr(listOfNewParts, partName);
-
-    if (pos == -1)
-    {
-      listOfNewParts = listOfNewParts + partName + '\n';
-    }
-
-    //Set this to defaults
-    feederID = 0; //No feeder assigned
-    feederXOffset = 0.0; //No offset
-    feederYOffset = 0.0;
-    feederPickHeight = 0.5; //In mm. 0.5 is default.
-    feederPickSpeed = 0; //1 to 100%. 0 will follow master control.
-    feederHead = 1;
-    componentRotation = 0;
-    feederFeedDistance = 4; //2, 4, 8, 12, 16, or 24mm. 4mm is most common.
-    mountComponent = "False";
-
-    componentSizeX = 0.0; //Size of component in mm
-    componentSizeY = 0.0;
-	
-    return (partName);
-  }
-  else
-  {
-    //Get the data for this feeder
-    string feeder[];
-    string thisLine = availableFeederList[lineNumber];
-    strsplit(feeder, thisLine, ',');
-
-    feederID = strtod(feeder[1]);
-    partName = (feeder[2]);
-    feederXOffset = strtod(feeder[3]);
-    feederYOffset = strtod(feeder[4]);
-    feederPickHeight = strtod(feeder[5]); //In mm. 0.5 is default.
-    feederPickSpeed = strtod(feeder[6]); //1 to 100%. 0 will follow master control.
-    feederHead = strtod(feeder[7]);
-    componentRotation = strtod(feeder[8]);
-    feederFeedDistance = strtod(feeder[9]); //2, 4, 8, 12, 16, or 24mm
-
-    mountComponent = "True";
-    if (feeder[10] != "Y")
-    {
-      mountComponent = "False";
-    }
-    //11 = Check Vacuum
-    //12 = Use Vision
-    //13 = Centroid Correction X
-    //14 = Centroid Correction Y
-    //15 = Aliases
-
-    componentSizeX = 0.0; //Size of component in mm
-    componentSizeY = 0.0;
-
-    addFeederToList(partName, feederID);
-    return (partName);
-  }
-}
 
 //Figures out the feeders needed and creates a material stack
-void addFeeders()
+void addFeeders(int position)
 {
-  board(X)
-  {
-    //Create Material Stack
-    printf("\n");
-    printf("Table,No.,ID,DeltX,DeltY,FeedRates,Note,Height,Speed,Status,SizeX,SizeY\n");
+  //Create Material Stack
+  printf("\n");
+  printf("Table,No.,ID,DeltX,DeltY,FeedRates,Note,Height,Speed,Status,SizeX,SizeY\n");
 
-    int stackNumber = 0;
+  int stackNumber = 0;
 
-    X.elements(E) if (E.populate) {
+  for(int i = 1; i <= MAX_FEEDER; i++){
+    //Check if feeder is used
+    int used = 0;
+    for(int k = 0; k < pnpCount; k++){
+      if(pnpPos[k] == position && pnpFeeder[k] == i){
+        used = 1;
+        break;
+      }
+    }
 
-      string componentName = E.value + '-' + E.package.name;
+    if(used){
+      //Table,No.,ID,DeltX,DeltY,
+      //FeedRates,Note,Height,Speed,
+      //Status,SizeX,SizeY
 
-      int isSmd = 0;
+      //0b.0000.0ABC
+      //A = 1 = Use Vision
+      //A = 0 = No Vision
+      //B = 1 = Use Vacuum Detection
+      //B = 0 = No Vacuum Detection
+      //C = 1 = Skip placement
+      //C = 0 = Place this component
+      //Example: 3 = no place, vac, no vis
 
-      E.package.contacts(C) {
-        if (C.smd && C.smd.layer == 1) {
-          isSmd = 1;
-        }
+      int mountValue = 0;
+      if(stringTrim(getFeederParameter(i, ROW_PLACE)) == "N"){
+        mountValue += 1;  //Skip
+      }
+      if(stringTrim(getFeederParameter(i, ROW_CHECK_VAC)) == "Y"){
+        mountValue += 2;  //Skip
+      }
+      if(stringTrim(getFeederParameter(i, ROW_USE_VISION)) == "Y"){
+        mountValue += 4;  //Skip
       }
 
-      if (isSmd)
-      {
-		//For every SMD component on this design, look up its feeder
-        componentName = setPartProfile(componentName); //This will, if possible, resolve any aliases to a known part name
+      //Station,0,1,0,0,4, 0.1uF,0.5,0,6,0,0
+      printf("Station, %d, %d, %s, %s, %s, %s, %s, %s, %d, %2.0f, %2.0f\n",
+             stackNumber, i, 
+             getFeederParameter(i, ROW_XOFFSET), getFeederParameter(i, ROW_YOFFSET),
+             getFeederParameter(i, ROW_SPACING), getFeederParameter(i, ROW_COMPNAME), 
+             getFeederParameter(i, ROW_HEIGHT), getFeederParameter(i, ROW_SPEED),mountValue, 
+             strtod(getFeederParameter(i, ROW_LENGTH))*100, 
+             strtod(getFeederParameter(i, ROW_WIDTH))*100
+      ); 
 
-        //Filter out stuff that is not actually SMD mounted devices
-        if (componentName == NO_MOUNT_STR)
-        {
-          //This component does not need a feeder record
-        }
-        else
-        {
-          //Do we already have this entry in the feeder list?
-          string componentNameLookup = lookup(usedFeederList, componentName, 0);
-
-          //If the component is not found then add it to the used feeder list
-          if (componentNameLookup == "")
-          {
-            //Table,No.,ID,DeltX,DeltY,
-            //FeedRates,Note,Height,Speed,
-            //Status,SizeX,SizeY
-
-            //0b.0000.0ABC
-            //A = 1 = Use Vision
-            //A = 0 = No Vision
-            //B = 1 = Use Vacuum Detection
-            //B = 0 = No Vacuum Detection
-            //C = 1 = Skip placement
-            //C = 0 = Place this component
-            //Example: 3 = no place, vac, no vis
-
-            int mountValue = 6;
-            if (mountComponent == "False") mountValue = 7;
-
-            //Station,0,1,0,0,4, 0.1uF,0.5,0,6,0,0
-            printf("Station, %d, %d, %.2f, %.2f, %d, %s, %.2f, %d, %d, %.2f, %.2f\n",
-                   stackNumber, feederID, feederXOffset, feederYOffset,
-                   feederFeedDistance, componentName, feederPickHeight, feederPickSpeed,
-                   mountValue, componentSizeX, componentSizeY); //mountValue: 6 is to place, 7 is to skip
-
-            //Add this package to the lookup table so we don't use it again
-            usedFeederList[stackNumber] = componentName;
-
-            stackNumber++;
-          }
-        }
-      }
+      stackNumber++;
     }
   }
 }
@@ -309,85 +318,77 @@ void addBatch()
 
 }
 
-void addComponents()
-{
-  //TODO - When you press USE DUAL NOZZLE the program figures out some sort of
-  //best use of two heads. Perhaps we just let the user click this button rather than
-  //try to automate it.
+int transformCoordinateX(int x, int pos){
+  if(pos == 0){
+    return x - minX;
+  } else {
+    if(flipHorizontal){
+      return maxX - x;
+    } else {      
+      return x - minX;
+    }
+  }
+}
 
+int transformCoordinateY(int y, int pos){
+  if(pos == 0){
+    return y - minY;
+  } else {
+    if(flipHorizontal){
+      return y - minY;
+    } else {      
+      return maxY - y;
+    }    
+  }
+}
+
+
+void addComponents(int position)
+{
   printf("\n");
   printf("Table,No.,ID,PHead,STNo.,DeltX,DeltY,Angle,Height,Skip,Speed,Explain,Note\n");
 
   int componentNumber = 0;
   int componentID = 1;
 
-  board(X)
-  {
-    X.elements(E) if (E.populate) {
+  for(int i = 0; i < pnpCount; i++){
+    if(pnpPos[i] == position && pnpFeeder[i] > 0){
+      //Most all Eagle FPs are correct but we have to subtract 90 because
+      //the tapes are mounted 90 degrees from the board
+      real convertedAngle = pnpAngle[i] - 90;
+      //However, some feeders/FPs were designed not horizontal so we correct on a component by component basis
+      if (convertedAngle > 180) convertedAngle -= 360;
 
-      string componentName = E.value + '-' + E.package.name;
+      int speed = strtol(getFeederParameter(pnpFeeder[i], ROW_SPEED));
+      if(speed == 100){speed = 0;}  //100% is value 0
 
-      int isSmd = 0,
-          xmax = -2147483648,
-          xmin = 2147483647,
-          ymax = xmax,
-          ymin = xmin;
-
-      E.package.contacts(C) {
-        if (C.smd && C.smd.layer == 1) {
-          isSmd = 1;
-
-          if (C.x > xmax) xmax = C.x;
-          if (C.y > ymax) ymax = C.y;
-          if (C.x < xmin) xmin = C.x;
-          if (C.y < ymin) ymin = C.y;
-        }
+      int mountValue = 0;
+      if(stringTrim(getFeederParameter(pnpFeeder[i], ROW_PLACE)) == "N"){
+        mountValue += 1;  //Skip
+      }
+      if(stringTrim(getFeederParameter(pnpFeeder[i], ROW_CHECK_VAC)) == "Y"){
+        mountValue += 2;  //Skip
+      }
+      if(stringTrim(getFeederParameter(pnpFeeder[i], ROW_USE_VISION)) == "Y"){
+        mountValue += 4;  //Skip
       }
 
-      if (isSmd)
-      {
-		//For every SMD component on this design, look up its component info
-        componentName = setPartProfile(componentName); //This will, if possible, resolve any aliases to a known part name
+      printf("EComponent, %d, %d, %s, %d, %.2f, %.2f, %.2f, %.2f, %d, %d, %s, %s\n",
+             componentNumber, componentID, getFeederParameter(pnpFeeder[i], ROW_HEAD), pnpFeeder[i],
+             u2mm(transformCoordinateX(pnpX[i], pnpPos[i])) + offsetX, 
+             u2mm(transformCoordinateY(pnpY[i], pnpPos[i])) + offsetY, 
+             convertedAngle, strtod(getFeederParameter(pnpFeeder[i], ROW_HEIGHT)),
+             mountValue, speed, 
+             pnpDesignator[i], pnpName[i]); //mountValue: 6 is to place, 7 is to skip
 
-		
-        //Filter out stuff that is not actually SMD mounted devices
-        if (componentName == NO_MOUNT_STR)
-        {
-          //These devices are not mounted so ignore them
-        }
-        else
-        {
-          //Most all Eagle FPs are correct but we have to subtract 90 because
-          //the tapes are mounted 90 degrees from the board
-          real convertedAngle = E.angle - 90;
+      //Example output
+      //Table,No.,ID,PHead,STNo.,DeltX,DeltY,Angle,Height,Skip,Speed,Explain,Note
+      //EComponent,0,1,1,1,16.51,12.68,0,0.5,6,0,C4, 0.1uF
 
-          //However, some feeders/FPs were designed not horizontal so we correct on a component by component basis
-          convertedAngle = convertedAngle + componentRotation;
-          if (convertedAngle > 180) convertedAngle -= 360;
-
-          //The material stack contains all the feeder information. We must assign the proper feederID
-          //to this component so the machine knows where and how to pick it.
-
-          //Example output
-          //Table,No.,ID,PHead,STNo.,DeltX,DeltY,Angle,Height,Skip,Speed,Explain,Note
-          //EComponent,0,1,1,1,16.51,12.68,0,0.5,6,0,C4, 0.1uF
-
-          int mountValue = 6;
-          if (mountComponent == "False") mountValue = 7;
-
-          printf("EComponent, %d, %d, %d, %d, %.2f, %.2f, %.2f, %.2f, %d, %d, %s, %s\n",
-                 componentNumber, componentID, feederHead, feederID,
-                 u2mm((xmin + xmax) / 2) + offsetX, u2mm((ymin + ymax) / 2) + offsetY, convertedAngle, feederPickHeight,
-                 mountValue, 0, E.name, componentName); //mountValue: 6 is to place, 7 is to skip
-
-          componentNumber++;
-          componentID++;
-        }
-      }
+      componentNumber++;
+      componentID++;
     }
-
   }
-
 }
 
 //Add any IC tray info
@@ -430,77 +431,264 @@ void addCalibrationFactor()
   printf("CalibFator,0,0,0,0,0,1,1,0\n"); //Typo is required
 }
 
-if (board) board(B) {
-	//By default a ULP looks for files in the \eagle\bin directory.
-	//Let's look in the directory where the ULP lives
-
-	//Based on Fudgy's code: http://www.amarketplaceofideas.com/simple-eagle-pcb-ulp-user-language-program-tutorial-to-show-the-path-of-the-ulp.htm
-	string ULP_Path;
-
-	//Remove the ulp filename from argv[0]
-	int pos = strrchr(argv[0], '/');
-	if (pos >= 0) 
-	{ 
-		ULP_Path = strsub(argv[0], 0, pos + 1);
-	}
-		
-	//Convert forward slashes to back slashes so we can run system command
-	pos = strrchr(ULP_Path, '/');
-	while (pos >= 0) 
-	{
-		ULP_Path = strsub(ULP_Path, 0, pos) + "\\\\" + strsub(ULP_Path, pos + 1, strlen(ULP_Path)); //Remove and replace
-		pos = strrchr(ULP_Path, '/'); //Look for the next forward slash
-	}
-		
-	//Attempt to update feeder file via python script
-	string commandToRun = "cmd.exe /C python " + ULP_Path + "UpdateFeederData.py " + ULP_Path; ///K to keep window open
-    if(system(commandToRun) != 0)
-	{
-		dlgMessageBox("Error: The python script to update feeders.csv failed. Continuing but feeder data may be old.", "OK");
-	}
-		  
-    numberOfFeeders = fileread(availableFeederList, ULP_Path + "feeders.csv");
-
-  if (numberOfFeeders == 0)
-  {
-    dlgMessageBox("Error: Feeder file not found. Run UpdateFeederData.py to create the feeder file.", "OK");
-    exit(0);
-  }
-
-  //We want to save the output to the folder where the Pick and Place program can see it (must be the \files\ sub directory)
-  string fileName = dlgFileSave("Save File", filesetext(B.name, ".dpv"), "*.dpv");
-  if (fileName == "") exit(0);
-
-  output(fileName) {
-    addHeader(); //Static header
-
-    addFeeders(); //Calculate the needed feeders
-
-    addBatch(); //Array of PCBs?
-
-    addComponents(); //You know, the things we're trying to place?
-
-    addICTray(); //Add any IC tray info here.
-
-    addPCBCalibrate(); //Add flag?
-
-    addFiducials(); //Add the fiducial/mark information
-
+void writeOutputFile(int layer, string prefix) {
+  output(filesetext(pnpBasefile, prefix + ".dpv")) {
+    addHeader();            //Static header
+    addFeeders(layer);      //Calculate the needed feeders
+    addBatch();             //Array of PCBs?
+    addComponents(layer);   //You know, the things we're trying to place?
+    addICTray();            //Add any IC tray info here.
+    addPCBCalibrate();      //Add flag?
+    addFiducials();         //Add the fiducial/mark information
     addCalibrationFactor(); //Add the calibration factor
-
-    string dialogMessage = "Feeders Used:\n" + listOfKnownParts;
-
-    if (newPart == "True")
-    {
-      dialogMessage = dialogMessage + "\nThe following new parts need a feeder:\n" + listOfNewParts;
-    }
-
-    dlgMessageBox(dialogMessage, "OK");
-  }
-
-} else {
-  dlgMessageBox("\n    Start this ULP in a Board    \n");
-  exit (0);
+  }  
 }
 
 
+void downloadFeederData(){
+  if(feederListMode ==  0) { //Local CSV
+    numberOfFeeders = fileread(availableFeederList, filedir(argv[0]) + feederCSV);
+  } else {                  //Download data from url / google spreadsheets
+    numberOfFeeders = netget(availableFeederList, feederListUrl);
+  }
+
+  // Check if everything was ok
+  if (numberOfFeeders == 0){
+    dlgMessageBox("Error: Feeder file not found.", "OK");
+    exit(0);
+  }
+
+  //Process feeder data to be TSV instead of CSV and split headline and data
+  availableFeederHeadline = stringReplace(availableFeederList[0], ",", "\t");
+  for(int i = 1; i < numberOfFeeders; i++){
+    availableFeederList[i-1] = stringReplace(availableFeederList[i], ",", " \t");
+  }
+  availableFeederList[numberOfFeeders-1] = "";
+  numberOfFeeders--;
+
+  //If enabled, autodetect the row columns
+  if(autodetectColumns){
+    parseRowsByHeader();
+  }
+}
+
+void setCoordinates(int x, int y)
+{
+  if(!initialized) {
+    maxX = x;
+    minX = x;
+    maxY = y;
+    minY = y;
+    initialized = 1;
+  }
+
+  if(x < minX) {
+    minX = x;
+  }
+  if(y < minY) {
+    minY = y;
+  }
+  if(y > maxY) {
+    maxY = y;  
+  }
+  if(x > maxX) {
+    maxX = x;  
+  }
+}
+
+void loadBoardInformation() {
+  pnpCount            = 0;
+  pnpStatsPartsTotal  = 0;
+  pnpStatsPartsOk     = 0;
+  pnpStatsPartsNew    = 0;
+  pnpStatsPartsDnp    = 0;
+
+  board(B) {
+    pnpBasefile = B.name;
+
+    B.elements(E) {
+
+      int isSmd = 0;
+      int isBottom = 0;
+
+      E.package.contacts(C) {
+        if (C.smd && C.smd.layer == 1) {
+          isSmd = 1;
+        }
+        if (C.smd && C.smd.layer == 16) {
+          isSmd = 1;
+          isBottom = 1;
+        }
+      }
+
+      if (isSmd) {
+        pnpName[pnpCount]       = E.value + '-' + E.package.name;
+        pnpDesignator[pnpCount] = E.name;
+        pnpX[pnpCount]          = E.x;
+        pnpY[pnpCount]          = E.y;
+        pnpAngle[pnpCount]      = E.angle;
+        pnpPos[pnpCount]        = isBottom;
+
+        if(E.populate && E.attribute["POPULATE"] != "DNP"){
+          pnpFeeder[pnpCount]   = getFeederId(pnpName[pnpCount]);
+        } else {
+          pnpFeeder[pnpCount]   = FEEDER_DNP;
+        }
+
+        pnpStatsPartsTotal++;
+        if(pnpFeeder[pnpCount] == FEEDER_NEW){
+          pnpStatsPartsNew++;
+        } else if(pnpFeeder[pnpCount] == FEEDER_DNP){
+          pnpStatsPartsDnp++;
+        } else {
+          pnpStatsPartsOk++;
+        }
+
+        pnpCount++;
+      }
+
+
+      B.wires(W) {
+        if(W.layer == 20) {
+          if(W.arc) {
+            setCoordinates(W.arc.x1, W.arc.y1);
+            setCoordinates(W.arc.x2, W.arc.y2);
+            
+            int angle = W.arc.angle2 - W.arc.angle1;
+            
+            int set_elements = round(angle/90);
+            int start_element = round(W.arc.angle1/90);
+            start_element = start_element % 4;
+            
+            for(int i = start_element; i < (start_element + set_elements); i++) {
+              if(i == 0) {
+                setCoordinates(W.arc.xc - W.arc.radius, W.arc.y1);
+              } else if(i == 1) {
+                setCoordinates(W.arc.x2, W.arc.yc + W.arc.radius);
+              } else if(i == 2) {
+                setCoordinates(W.arc.xc + W.arc.radius, W.arc.y1);
+              } else if(i == 3) {
+                setCoordinates(W.arc.x2, W.arc.yc - W.arc.radius);
+              }
+            }
+          } else {
+            setCoordinates(W.x1, W.y1);
+            setCoordinates(W.x2, W.y2);
+          }
+        }
+      }
+
+      B.circles(C) {
+        if(C.layer == 20) {
+          setCoordinates(C.x + C.radius, C.y + C.radius);
+          setCoordinates(C.x - C.radius, C.y - C.radius);
+        }
+      }
+
+
+    } 
+  }
+}
+
+int showListOfDevices()
+{
+  int selected = 0;
+  int sorted = 0;
+  int quantity = 1;
+  configRead();
+  downloadFeederData();
+
+  while(1)
+  {
+    loadBoardInformation();
+
+    string partlist[];
+    for(int i = 0; i < pnpCount; i++){
+      partlist[i] = "";
+      string feeder = "";
+      if(pnpFeeder[i] == FEEDER_NEW){
+        feeder = "No feeder assigned!";
+      } else if(pnpFeeder[i] == FEEDER_DNP){
+        feeder = "Do not mount!";
+      } else {
+        sprintf(feeder, "%d", pnpFeeder[i]);
+      }
+
+      sprintf(partlist[i], "%s\t%s\t%s\t%.2fmm\t%.2fmm\t%.1f°\t%s", pnpDesignator[i], pnpName[i], (pnpPos[i]==0)?"Top":"Bottom", u2mm(pnpX[i]), u2mm(pnpY[i]), pnpAngle[i], feeder);
+    }
+  
+    int dstatus = dlgDialog("Feeder configuration"){
+      dlgHBoxLayout{
+        dlgVBoxLayout dlgSpacing(800);
+        dlgTabWidget {
+          dlgTabPage("Parts overview") {
+            dlgListView("Designator\tComponent\tPosition\tPos X\tPos Y\tAngle\tFeeder", partlist, selected, sorted){
+              dlgAccept();
+            }
+          }
+          dlgTabPage("Feeder config") {
+            dlgListView(availableFeederHeadline, availableFeederList, selected, sorted){
+              dlgAccept();
+            }
+          }
+        }
+        dlgVBoxLayout {
+          dlgGroup("Feeder Config") {
+            dlgRadioButton("Local CSV", feederListMode);
+            dlgStringEdit(feederCSV); 
+            dlgRadioButton("Google spreadsheet", feederListMode);
+            dlgStringEdit(feederListUrl); 
+            dlgCheckBox("Autodetect columns", autodetectColumns);
+            dlgPushButton("Refresh feeder list") {
+              downloadFeederData();
+              dlgAccept();
+            }
+          }
+
+          dlgGroup("Statistics") { 
+            dlgHBoxLayout{ dlgLabel("Parts total:\t\t");         dlgLabel(itoa(pnpStatsPartsTotal)); }
+            dlgHBoxLayout{ dlgLabel("Parts ok:\t\t\t");          dlgLabel(itoa(pnpStatsPartsOk));    }
+            dlgHBoxLayout{ dlgLabel("Parts not assigned:\t\t");  dlgLabel(itoa(pnpStatsPartsNew));   }
+            dlgHBoxLayout{ dlgLabel("Parts not mounted:\t\t");   dlgLabel(itoa(pnpStatsPartsDnp));   }
+            dlgHBoxLayout{ dlgLabel("Auto offset X:\t\t");       dlgLabel(itoa(u2mm(-minX)) + "mm"); }
+            dlgHBoxLayout{ dlgLabel("Auto offset Y:\t\t");       dlgLabel(itoa(u2mm(-minY)) + "mm"); }
+          }
+
+          dlgGroup("Output") {
+            dlgHBoxLayout{ dlgLabel("Offset X:\t");         dlgRealEdit(offsetX, 0, 200); } 
+            dlgHBoxLayout{ dlgLabel("Offset Y:\t");         dlgRealEdit(offsetY, 0, 200); } 
+            dlgCheckBox("Top placement data", enableTop);
+            dlgCheckBox("Bottom placement data", enableBottom);
+            dlgGroup("Bottom flip") {
+              dlgRadioButton("Flip vertical",   flipHorizontal);
+              dlgRadioButton("Flip horizontal", flipHorizontal);
+            }
+
+            dlgPushButton("Save output file") {
+              if(enableTop){
+                writeOutputFile(0, "-top");
+              }
+              if(enableBottom){
+                writeOutputFile(1, "-bot");
+              }
+              dlgAccept(-1);
+            }           
+          }
+          dlgStretch(1);
+        }
+      }
+    };
+    configWrite();
+    if(dstatus == -1){break;}
+  }
+
+  return 1;
+}
+
+if (!board) {
+    dlgMessageBox("\n    Start this ULP in a Board    \n");
+    exit (0);  
+} else {
+
+    showListOfDevices();
+}
