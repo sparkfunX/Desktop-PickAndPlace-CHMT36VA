@@ -1,17 +1,23 @@
-#usage "<b>Data generation for mounting machines</b>\n"
+﻿#usage "<b>Generates Pick and Place data for Charmhigh machines</b>\n"
 "<p>"
 "Generates a .dpv work file for CharmHigh Pick and Place Machines"
-"<author>Author: Nathan</author>"
-
+"<author>Author: Nathan Seidle, nathan@sparkfun.com</author>"
+"<author>Author: Bernhard Woerndl-Aichriedler, bwa@xdevelop.at</author>"
 
 #include "Include_String.ulp"
-
-
 // THIS PROGRAM IS PROVIDED AS IS AND WITHOUT WARRANTY OF ANY KIND, EXPRESSED OR IMPLIED
 
-//Sometimes you just need to jog everything
-real offsetY = 0.0; //0.5 = move everything up 0.5mm
-real offsetX = 0.0; //0.5 = move everything to right 0.5mm
+
+//Config options we want to save
+real      offsetY             = 0.0; 
+real      offsetX             = 0.0;
+int       enableTop           = 1;
+int       enableBottom        = 1;
+int       feederListMode      = 1;
+string    feederListUrl       = "https://docs.google.com/spreadsheet/ccc?output=csv&key=" + "1PYF-mgUX6ZCsCE1asVujuJHx-Mq8295c7aTCwVem-NQ";
+string    feederCSV           = "feeders.csv";
+int       autodetectColumns   = 1;
+int       flipHorizontal      = 1;
 
 string pnpName[];
 string pnpDesignator[];
@@ -38,30 +44,129 @@ int maxY = 0;
 int minY = 0;
 int initialized = 0;
 
-
-//TODO Add flags for check vacuum and check vision of a given feeder
-
 //Indicies to the online table
-int ROW_FEEDERID  = 1;
-int ROW_COMPNAME  = 2;
-int ROW_ALIAS     = 3; 
-int ROW_XOFFSET   = 4;
-int ROW_YOFFSET   = 5;
-int ROW_HEIGHT    = 6;
-int ROW_LENGTH    = 7;
-int ROW_WIDTH     = 8;
-int ROW_SPEED     = 9;
-int ROW_HEAD      = 10;
-int ROW_RELTAPE   = 11;
-int ROW_SPACING   = 12;
-int ROW_PLACE     = 13;
-int ROW_CHECK_VAC = 14;
-int ROW_USE_VISION= 15; 
+int ROW_FEEDERID  = 1;      string NAME_FEEDERID    = "Feeder Number"      ; string DEFAULT_FEEDERID    = "0";
+int ROW_COMPNAME  = 2;      string NAME_COMPNAME    = "Component"          ; string DEFAULT_COMPNAME    = "";
+int ROW_ALIAS     = 3;      string NAME_ALIAS       = "Aliases"            ; string DEFAULT_ALIAS       = ""; 
+int ROW_XOFFSET   = 4;      string NAME_XOFFSET     = "XOffset"            ; string DEFAULT_XOFFSET     = "0";
+int ROW_YOFFSET   = 5;      string NAME_YOFFSET     = "YOffset"            ; string DEFAULT_YOFFSET     = "0";
+int ROW_HEIGHT    = 6;      string NAME_HEIGHT      = "Height"             ; string DEFAULT_HEIGHT      = "0.5";
+int ROW_LENGTH    = 7;      string NAME_LENGTH      = "Length"             ; string DEFAULT_LENGTH      = "0.1";
+int ROW_WIDTH     = 8;      string NAME_WIDTH       = "Width"              ; string DEFAULT_WIDTH       = "0.1";
+int ROW_SPEED     = 9;      string NAME_SPEED       = "Speed"              ; string DEFAULT_SPEED       = "100";
+int ROW_HEAD      = 10;     string NAME_HEAD        = "Head"               ; string DEFAULT_HEAD        = "1";
+int ROW_RELTAPE   = 11;     string NAME_RELTAPE     = "Relative Tape Angle"; string DEFAULT_RELTAPE     = "0";
+int ROW_SPACING   = 12;     string NAME_SPACING     = "Feed Spacing"       ; string DEFAULT_SPACING     = "2";
+int ROW_PLACE     = 13;     string NAME_PLACE       = "Place Component"    ; string DEFAULT_PLACE       = "Y";
+int ROW_CHECK_VAC = 14;     string NAME_CHECK_VAC   = "Check Vacuum"       ; string DEFAULT_CHECK_VAC   = "N";
+int ROW_USE_VISION= 15;     string NAME_USE_VISION  = "Use Vision"         ; string DEFAULT_USE_VISION  = "Y"; 
 
 int MAX_FEEDER    = 29;
-
 int FEEDER_NEW    = -1;
 int FEEDER_DNP    = 0;
+
+string configFile  = filesetext(argv[0], ".cfg");
+
+void configWrite(){
+  output(configFile){
+    printf("%.5f\n", offsetX);
+    printf("%.5f\n", offsetY);
+    printf("%d\n",   enableTop);
+    printf("%d\n",   enableBottom);
+    printf("%d\n",   feederListMode);
+    printf("%s\n",   feederListUrl);
+    printf("%s\n",   feederCSV);
+    printf("%d\n",   autodetectColumns);
+    printf("%d\n",   flipHorizontal);
+  }
+}
+
+void configRead() {
+  if(filesize(configFile)){ //Check if file exists
+    string data[];
+    int line = fileread(data, configFile);
+    if(line >= 5){
+      offsetX            = strtod(data[0]);
+      offsetY            = strtod(data[1]);
+      enableTop          = strtol(data[2]);
+      enableBottom       = strtol(data[3]);
+      feederListMode     = strtol(data[4]);
+      feederListUrl      = data[5];
+      feederCSV          = data[6];
+      autodetectColumns  = strtol(data[7]);
+      flipHorizontal     = strtol(data[8]);
+    }
+  }
+}
+
+void addFeederColum(string name, string value){
+  sprintf(availableFeederHeadline, "%s\t%s", availableFeederHeadline, name);
+  for(int i = 0; i < numberOfFeeders; i++){
+    sprintf(availableFeederList[i], "%s\t%s", availableFeederList[i], value);
+  }
+}
+
+void parseRowsByHeader(){
+  string columns[];
+  int count = strsplit(columns, availableFeederHeadline, '\t');
+
+  //Invalidate row indices
+  ROW_FEEDERID  = -1;
+  ROW_COMPNAME  = -1;
+  ROW_ALIAS     = -1; 
+  ROW_XOFFSET   = -1;
+  ROW_YOFFSET   = -1;
+  ROW_HEIGHT    = -1;
+  ROW_LENGTH    = -1;
+  ROW_WIDTH     = -1;
+  ROW_SPEED     = -1;
+  ROW_HEAD      = -1;
+  ROW_RELTAPE   = -1;
+  ROW_SPACING   = -1;
+  ROW_PLACE     = -1;
+  ROW_CHECK_VAC = -1;
+  ROW_USE_VISION= -1; 
+
+  //Check what column contains what value
+  for(int i = 0; i < count; i++){
+    string col = stringTrim(columns[i]);
+    //Switch would be nicer here, but eagle doesn't allow for string cases
+    if(col == NAME_FEEDERID   ){ROW_FEEDERID    = i;}
+    if(col == NAME_COMPNAME   ){ROW_COMPNAME    = i;}
+    if(col == NAME_ALIAS      ){ROW_ALIAS       = i;}
+    if(col == NAME_XOFFSET    ){ROW_XOFFSET     = i;}
+    if(col == NAME_YOFFSET    ){ROW_YOFFSET     = i;}
+    if(col == NAME_HEIGHT     ){ROW_HEIGHT      = i;}
+    if(col == NAME_LENGTH     ){ROW_LENGTH      = i;}
+    if(col == NAME_WIDTH      ){ROW_WIDTH       = i;}
+    if(col == NAME_SPEED      ){ROW_SPEED       = i;}
+    if(col == NAME_HEAD       ){ROW_HEAD        = i;}
+    if(col == NAME_RELTAPE    ){ROW_RELTAPE     = i;}
+    if(col == NAME_SPACING    ){ROW_SPACING     = i;}
+    if(col == NAME_PLACE      ){ROW_PLACE       = i;}
+    if(col == NAME_CHECK_VAC  ){ROW_CHECK_VAC   = i;}
+    if(col == NAME_USE_VISION ){ROW_USE_VISION  = i;}
+    
+  }
+
+  //Fill up everything with default data, if not given
+  if(ROW_FEEDERID   == -1){ addFeederColum(NAME_FEEDERID  , DEFAULT_FEEDERID  ); ROW_FEEDERID   = count++;}
+  if(ROW_COMPNAME   == -1){ addFeederColum(NAME_COMPNAME  , DEFAULT_COMPNAME  ); ROW_COMPNAME   = count++;}
+  if(ROW_ALIAS      == -1){ addFeederColum(NAME_ALIAS     , DEFAULT_ALIAS     ); ROW_ALIAS      = count++;}
+  if(ROW_XOFFSET    == -1){ addFeederColum(NAME_XOFFSET   , DEFAULT_XOFFSET   ); ROW_XOFFSET    = count++;}
+  if(ROW_YOFFSET    == -1){ addFeederColum(NAME_YOFFSET   , DEFAULT_YOFFSET   ); ROW_YOFFSET    = count++;}
+  if(ROW_HEIGHT     == -1){ addFeederColum(NAME_HEIGHT    , DEFAULT_HEIGHT    ); ROW_HEIGHT     = count++;}
+  if(ROW_LENGTH     == -1){ addFeederColum(NAME_LENGTH    , DEFAULT_LENGTH    ); ROW_LENGTH     = count++;}
+  if(ROW_WIDTH      == -1){ addFeederColum(NAME_WIDTH     , DEFAULT_WIDTH     ); ROW_WIDTH      = count++;}
+  if(ROW_SPEED      == -1){ addFeederColum(NAME_SPEED     , DEFAULT_SPEED     ); ROW_SPEED      = count++;}
+  if(ROW_HEAD       == -1){ addFeederColum(NAME_HEAD      , DEFAULT_HEAD      ); ROW_HEAD       = count++;}
+  if(ROW_RELTAPE    == -1){ addFeederColum(NAME_RELTAPE   , DEFAULT_RELTAPE   ); ROW_RELTAPE    = count++;}
+  if(ROW_SPACING    == -1){ addFeederColum(NAME_SPACING   , DEFAULT_SPACING   ); ROW_SPACING    = count++;}
+  if(ROW_PLACE      == -1){ addFeederColum(NAME_PLACE     , DEFAULT_PLACE     ); ROW_PLACE      = count++;}
+  if(ROW_CHECK_VAC  == -1){ addFeederColum(NAME_CHECK_VAC , DEFAULT_CHECK_VAC ); ROW_CHECK_VAC  = count++;}
+  if(ROW_USE_VISION == -1){ addFeederColum(NAME_USE_VISION, DEFAULT_USE_VISION); ROW_USE_VISION = count++;}
+
+}
 
 string getFeederParameterByLine(int line, int row){
   string feederData[];
@@ -92,7 +197,7 @@ int getFeederId(string name) {
     string falias  = getFeederParameter(i, ROW_ALIAS); 
 
     //Check component name
-    if(fname == name){
+    if(stringTrim(fname) == name){
       return i;
     }
 
@@ -155,16 +260,26 @@ void addFeeders(int position)
       //C = 0 = Place this component
       //Example: 3 = no place, vac, no vis
 
+      int mountValue = 0;
+      if(stringTrim(getFeederParameter(i, ROW_PLACE)) == "N"){
+        mountValue += 1;  //Skip
+      }
+      if(stringTrim(getFeederParameter(i, ROW_CHECK_VAC)) == "Y"){
+        mountValue += 2;  //Skip
+      }
+      if(stringTrim(getFeederParameter(i, ROW_USE_VISION)) == "Y"){
+        mountValue += 4;  //Skip
+      }
+
       //Station,0,1,0,0,4, 0.1uF,0.5,0,6,0,0
       printf("Station, %d, %d, %s, %s, %s, %s, %s, %s, %d, %2.0f, %2.0f\n",
              stackNumber, i, 
              getFeederParameter(i, ROW_XOFFSET), getFeederParameter(i, ROW_YOFFSET),
              getFeederParameter(i, ROW_SPACING), getFeederParameter(i, ROW_COMPNAME), 
-             getFeederParameter(i, ROW_HEIGHT), getFeederParameter(i, ROW_SPEED),6, 
+             getFeederParameter(i, ROW_HEIGHT), getFeederParameter(i, ROW_SPEED),mountValue, 
              strtod(getFeederParameter(i, ROW_LENGTH))*100, 
              strtod(getFeederParameter(i, ROW_WIDTH))*100
       ); 
-      //mountValue: 6 is to place, 7 is to skip
 
       stackNumber++;
     }
@@ -207,7 +322,11 @@ int transformCoordinateX(int x, int pos){
   if(pos == 0){
     return x - minX;
   } else {
-    return maxX - x;
+    if(flipHorizontal){
+      return maxX - x;
+    } else {      
+      return x - minX;
+    }
   }
 }
 
@@ -215,7 +334,11 @@ int transformCoordinateY(int y, int pos){
   if(pos == 0){
     return y - minY;
   } else {
-    return maxY - y;
+    if(flipHorizontal){
+      return y - minY;
+    } else {      
+      return maxY - y;
+    }    
   }
 }
 
@@ -236,12 +359,26 @@ void addComponents(int position)
       //However, some feeders/FPs were designed not horizontal so we correct on a component by component basis
       if (convertedAngle > 180) convertedAngle -= 360;
 
-      printf("EComponent, %d, %d, %s, %d, %.2f, %.2f, %.2f, %.2f, %d, %s, %s, %s\n",
+      int speed = strtol(getFeederParameter(pnpFeeder[i], ROW_SPEED));
+      if(speed == 100){speed = 0;}  //100% is value 0
+
+      int mountValue = 0;
+      if(stringTrim(getFeederParameter(pnpFeeder[i], ROW_PLACE)) == "N"){
+        mountValue += 1;  //Skip
+      }
+      if(stringTrim(getFeederParameter(pnpFeeder[i], ROW_CHECK_VAC)) == "Y"){
+        mountValue += 2;  //Skip
+      }
+      if(stringTrim(getFeederParameter(pnpFeeder[i], ROW_USE_VISION)) == "Y"){
+        mountValue += 4;  //Skip
+      }
+
+      printf("EComponent, %d, %d, %s, %d, %.2f, %.2f, %.2f, %.2f, %d, %d, %s, %s\n",
              componentNumber, componentID, getFeederParameter(pnpFeeder[i], ROW_HEAD), pnpFeeder[i],
              u2mm(transformCoordinateX(pnpX[i], pnpPos[i])) + offsetX, 
              u2mm(transformCoordinateY(pnpY[i], pnpPos[i])) + offsetY, 
              convertedAngle, strtod(getFeederParameter(pnpFeeder[i], ROW_HEIGHT)),
-             6, getFeederParameter(pnpFeeder[i], ROW_SPEED), 
+             mountValue, speed, 
              pnpDesignator[i], pnpName[i]); //mountValue: 6 is to place, 7 is to skip
 
       //Example output
@@ -309,22 +446,30 @@ void writeOutputFile(int layer, string prefix) {
 
 
 void downloadFeederData(){
-    string spreadsheet_key = "1Ji8-ulmfizbTw11OVJ1ojtQojZbGBaaUEyQ4R7oua1U";
-    numberOfFeeders = netget(availableFeederList, "https://docs.google.com/spreadsheet/ccc?key=" + spreadsheet_key + "&output=csv");
-    if (numberOfFeeders == 0)
-    {
-      dlgMessageBox("Error: Feeder file not found. Run UpdateFeederData.py to create the feeder file.", "OK");
-      exit(0);
-    }
+  if(feederListMode ==  0) { //Local CSV
+    numberOfFeeders = fileread(availableFeederList, filedir(argv[0]) + feederCSV);
+  } else {                  //Download data from url / google spreadsheets
+    numberOfFeeders = netget(availableFeederList, feederListUrl);
+  }
 
-    availableFeederHeadline = stringReplace(availableFeederList[0], ",", "\t");
+  // Check if everything was ok
+  if (numberOfFeeders == 0){
+    dlgMessageBox("Error: Feeder file not found.", "OK");
+    exit(0);
+  }
 
-    //Process feeder data to be TSV instead of CSV
-    for(int i = 1; i < numberOfFeeders; i++){
-      availableFeederList[i-1] = stringReplace(availableFeederList[i], ",", " \t");
-    }
-    availableFeederList[numberOfFeeders-1] = "";
-    numberOfFeeders--;
+  //Process feeder data to be TSV instead of CSV and split headline and data
+  availableFeederHeadline = stringReplace(availableFeederList[0], ",", "\t");
+  for(int i = 1; i < numberOfFeeders; i++){
+    availableFeederList[i-1] = stringReplace(availableFeederList[i], ",", " \t");
+  }
+  availableFeederList[numberOfFeeders-1] = "";
+  numberOfFeeders--;
+
+  //If enabled, autodetect the row columns
+  if(autodetectColumns){
+    parseRowsByHeader();
+  }
 }
 
 void setCoordinates(int x, int y)
@@ -450,14 +595,9 @@ int showListOfDevices()
   int selected = 0;
   int sorted = 0;
   int quantity = 1;
-  int enableTop     = 1;
-  int enableBottom  = 1;
-  real frameX = 0;
-  real frameY = 0;
-
+  configRead();
   downloadFeederData();
 
-  //bomLoadData();
   while(1)
   {
     loadBoardInformation();
@@ -493,21 +633,37 @@ int showListOfDevices()
           }
         }
         dlgVBoxLayout {
-          dlgGroup("Statistics") { 
-            dlgHBoxLayout{ dlgLabel("Parts total:\t\t");       dlgLabel(itoa(pnpStatsPartsTotal)); }
-            dlgHBoxLayout{ dlgLabel("Parts ok:\t\t");          dlgLabel(itoa(pnpStatsPartsOk));    }
-            dlgHBoxLayout{ dlgLabel("Parts not assigned:\t");  dlgLabel(itoa(pnpStatsPartsNew));   }
-            dlgHBoxLayout{ dlgLabel("Parts not mounted:\t");   dlgLabel(itoa(pnpStatsPartsDnp));   }
+          dlgGroup("Feeder Config") {
+            dlgRadioButton("Local CSV", feederListMode);
+            dlgStringEdit(feederCSV); 
+            dlgRadioButton("Google spreadsheet", feederListMode);
+            dlgStringEdit(feederListUrl); 
+            dlgCheckBox("Autodetect columns", autodetectColumns);
             dlgPushButton("Refresh feeder list") {
               downloadFeederData();
               dlgAccept();
             }
           }
+
+          dlgGroup("Statistics") { 
+            dlgHBoxLayout{ dlgLabel("Parts total:\t\t");         dlgLabel(itoa(pnpStatsPartsTotal)); }
+            dlgHBoxLayout{ dlgLabel("Parts ok:\t\t\t");          dlgLabel(itoa(pnpStatsPartsOk));    }
+            dlgHBoxLayout{ dlgLabel("Parts not assigned:\t\t");  dlgLabel(itoa(pnpStatsPartsNew));   }
+            dlgHBoxLayout{ dlgLabel("Parts not mounted:\t\t");   dlgLabel(itoa(pnpStatsPartsDnp));   }
+            dlgHBoxLayout{ dlgLabel("Auto offset X:\t\t");       dlgLabel(itoa(u2mm(-minX)) + "mm"); }
+            dlgHBoxLayout{ dlgLabel("Auto offset Y:\t\t");       dlgLabel(itoa(u2mm(-minY)) + "mm"); }
+          }
+
           dlgGroup("Output") {
             dlgHBoxLayout{ dlgLabel("Offset X:\t");         dlgRealEdit(offsetX, 0, 200); } 
             dlgHBoxLayout{ dlgLabel("Offset Y:\t");         dlgRealEdit(offsetY, 0, 200); } 
             dlgCheckBox("Top placement data", enableTop);
             dlgCheckBox("Bottom placement data", enableBottom);
+            dlgGroup("Bottom flip") {
+              dlgRadioButton("Flip vertical",   flipHorizontal);
+              dlgRadioButton("Flip horizontal", flipHorizontal);
+            }
+
             dlgPushButton("Save output file") {
               if(enableTop){
                 writeOutputFile(0, "-top");
@@ -515,14 +671,14 @@ int showListOfDevices()
               if(enableBottom){
                 writeOutputFile(1, "-bot");
               }
-              dlgAccept();
+              dlgAccept(-1);
             }           
           }
           dlgStretch(1);
         }
       }
     };
-
+    configWrite();
     if(dstatus == -1){break;}
   }
 
@@ -533,5 +689,6 @@ if (!board) {
     dlgMessageBox("\n    Start this ULP in a Board    \n");
     exit (0);  
 } else {
+
     showListOfDevices();
 }
