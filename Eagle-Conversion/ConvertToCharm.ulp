@@ -197,7 +197,7 @@ int getFeederId(string name) {
     string falias  = getFeederParameter(i, ROW_ALIAS); 
 
     //Check component name
-    if(stringTrim(fname) == name){
+    if(strlwr(stringTrim(fname)) == strlwr(name)){
       return i;
     }
 
