@@ -49,7 +49,7 @@ if len(sys.argv) > 2:
 
 # This jogs all the components in a direction
 # Helpful if we need to adjust the entire job just a smidge
-global_x_adjust = 0.25
+global_x_adjust = 0.0
 global_y_adjust = 0
 
 def locate_feeder_info(component_ID):
