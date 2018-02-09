@@ -205,7 +205,7 @@ int getFeederId(string name) {
     string aliases[];
     int cnt = strsplit(aliases, falias, ':');     
     for(int k = 0; k < cnt; k++){
-      if(stringTrim(aliases[k]) == name){
+      if(strlwr(stringTrim(aliases[k])) == strlwr(name)){
         return i;
       }
     }
