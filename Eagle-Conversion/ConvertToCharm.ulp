@@ -382,7 +382,7 @@ void addComponents(int position)
              u2mm(transformCoordinateY(pnpY[i], pnpPos[i])) + offsetY, 
              convertedAngle, strtod(getFeederParameter(pnpFeeder[i], ROW_HEIGHT)),
              mountValue, speed, 
-             pnpDesignator[i], pnpName[i]); //mountValue: 6 is to place, 7 is to skip
+             pnpDesignator[i], getFeederParameter(pnpFeeder[i], ROW_COMPNAME)); //mountValue: 6 is to place, 7 is to skip
 
       //Example output
       //Table,No.,ID,PHead,STNo.,DeltX,DeltY,Angle,Height,Skip,Speed,Explain,Note
