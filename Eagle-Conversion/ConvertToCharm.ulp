@@ -514,21 +514,41 @@ void loadBoardInformation() {
       int isSmd = 0;
       int isBottom = 0;
 
+      int xmax = -2147483648,
+          xmin = 2147483647,
+          ymax = xmax,
+          ymin = xmin;	  
+
       E.package.contacts(C) {
         if (C.smd && C.smd.layer == 1) {
           isSmd = 1;
+
+	      //Find centroid of this component
+          if (C.x > xmax) xmax = C.x;
+          if (C.y > ymax) ymax = C.y;
+          if (C.x < xmin) xmin = C.x;
+          if (C.y < ymin) ymin = C.y;
         }
         if (C.smd && C.smd.layer == 16) {
           isSmd = 1;
           isBottom = 1;
+
+          if (C.x > xmax) xmax = C.x;
+          if (C.y > ymax) ymax = C.y;
+          if (C.x < xmin) xmin = C.x;
+          if (C.y < ymin) ymin = C.y;
         }
       }
 
       if (isSmd) {
+		  
+		real xCenter = (xmin + xmax) / 2;
+		real yCenter = (ymin + ymax) / 2;
+		
         pnpName[pnpCount]       = E.value + '-' + E.package.name;
         pnpDesignator[pnpCount] = E.name;
-        pnpX[pnpCount]          = E.x;
-        pnpY[pnpCount]          = E.y;
+        pnpX[pnpCount]          = xCenter;
+        pnpY[pnpCount]          = yCenter;
         pnpAngle[pnpCount]      = E.angle;
         pnpPos[pnpCount]        = isBottom;
 
