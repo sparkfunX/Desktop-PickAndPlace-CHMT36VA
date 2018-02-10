@@ -1,4 +1,4 @@
-﻿#usage "<b>Generates Pick and Place data for Charmhigh machines</b>\n"
+#usage "<b>Generates Pick and Place data for Charmhigh machines</b>\n"
 "<p>"
 "Generates a .dpv work file for CharmHigh Pick and Place Machines"
 "<author>Author: Nathan Seidle, nathan@sparkfun.com</author>"
@@ -18,6 +18,7 @@ string    feederListUrl       = "https://docs.google.com/spreadsheet/ccc?output=
 string    feederCSV           = "feeders.csv";
 int       autodetectColumns   = 1;
 int       flipHorizontal      = 1;
+string 	  defaultFileLocation = "";
 
 string pnpName[];
 string pnpDesignator[];
@@ -78,6 +79,7 @@ void configWrite(){
     printf("%s\n",   feederCSV);
     printf("%d\n",   autodetectColumns);
     printf("%d\n",   flipHorizontal);
+    printf("%s\n",   defaultFileLocation);
   }
 }
 
@@ -86,15 +88,16 @@ void configRead() {
     string data[];
     int line = fileread(data, configFile);
     if(line >= 5){
-      offsetX            = strtod(data[0]);
-      offsetY            = strtod(data[1]);
-      enableTop          = strtol(data[2]);
-      enableBottom       = strtol(data[3]);
-      feederListMode     = strtol(data[4]);
-      feederListUrl      = data[5];
-      feederCSV          = data[6];
-      autodetectColumns  = strtol(data[7]);
-      flipHorizontal     = strtol(data[8]);
+      offsetX            	= strtod(data[0]);
+      offsetY            	= strtod(data[1]);
+      enableTop          	= strtol(data[2]);
+      enableBottom       	= strtol(data[3]);
+      feederListMode     	= strtol(data[4]);
+      feederListUrl      	= data[5];
+      feederCSV          	= data[6];
+      autodetectColumns  	= strtol(data[7]);
+      flipHorizontal     	= strtol(data[8]);
+      defaultFileLocation	= data[9];
     }
   }
 }
@@ -435,7 +438,22 @@ void addCalibrationFactor()
 }
 
 void writeOutputFile(int layer, string prefix) {
-  output(filesetext(pnpBasefile, prefix + ".dpv")) {
+  string fileName = filesetext(pnpBasefile, prefix + ".dpv");
+
+  if(defaultFileLocation != "")
+  {
+    fileName = defaultFileLocation + filesetext(filename(pnpBasefile), prefix + ".dpv");
+  }
+
+	dlgMessageBox(fileName);
+  
+  //Prompt user for location to store file
+  fileName = dlgFileSave("Save File", fileName, "*.dpv");
+  if (fileName == "") exit(0);
+
+  defaultFileLocation = filedir(fileName); //Get just the directory structure
+
+  output(fileName) {
     addHeader();            //Static header
     addFeeders(layer);      //Calculate the needed feeders
     addBatch();             //Array of PCBs?
