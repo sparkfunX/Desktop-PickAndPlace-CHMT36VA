@@ -445,8 +445,6 @@ void writeOutputFile(int layer, string prefix) {
     fileName = defaultFileLocation + filesetext(filename(pnpBasefile), prefix + ".dpv");
   }
 
-	dlgMessageBox(fileName);
-  
   //Prompt user for location to store file
   fileName = dlgFileSave("Save File", fileName, "*.dpv");
   if (fileName == "") exit(0);
