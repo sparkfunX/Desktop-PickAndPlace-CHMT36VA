@@ -16,6 +16,9 @@ int       enableBottom        = 1;
 int       feederListMode      = 1;
 string    feederListUrl       = "https://docs.google.com/spreadsheet/ccc?output=csv&key=" + "1PYF-mgUX6ZCsCE1asVujuJHx-Mq8295c7aTCwVem-NQ";
 string    feederCSV           = "feeders.csv";
+int       trayListMode        = 1;
+string    trayListUrl         = "https://docs.google.com/spreadsheet/ccc?output=csv&key=" + "1PYF-mgUX6ZCsCE1asVujuJHx-Mq8295c7aTCwVem-NQ";
+string    trayCSV             = "trays.csv";
 int       autodetectColumns   = 1;
 int       flipHorizontal      = 1;
 int       useAutomaticOffset  = 1;
@@ -40,6 +43,9 @@ string  usedFeederList[]; //Keeps track of the components in the feeders
 string  availableFeederList[];
 string  availableFeederHeadline;
 int     numberOfFeeders;
+string  availableTrayList[];
+string  availableTrayHeadline;
+int     numberOfTrays;
 
 int maxX        = 0;
 int minX        = 0;
@@ -68,7 +74,7 @@ int COL_PLACE     = 13;     string NAME_PLACE       = "Place Component"    ; str
 int COL_CHECK_VAC = 14;     string NAME_CHECK_VAC   = "Check Vacuum"       ; string DEFAULT_CHECK_VAC   = "Y";
 int COL_USE_VISION= 15;     string NAME_USE_VISION  = "Use Vision"         ; string DEFAULT_USE_VISION  = "Y"; 
 
-int MAX_FEEDER    = 29;
+int MAX_FEEDER    = 99;
 int FEEDER_NEW    = -1;
 int FEEDER_DNP    = 0;
 
@@ -489,8 +495,12 @@ void addComponents(int position)
  */
 void addICTray()
 {
+  //Material Stacks from 88 to 99 are for IC trays
+  //ICTray,0,88,209,55.5,353,55.5,7,1,0
   printf("\n");
   printf("Table,No.,ID,CenterX,CenterY,IntervalX,IntervalY,NumX,NumY,Start\n");
+
+  
 }
 
 /**
@@ -596,6 +606,38 @@ void downloadFeederData(){
     parseRowsByHeader();
   }
 }
+
+/** 
+ * Download the tray data from the server
+ * or load it from CSV
+ */ 
+void downloadTrayData(){
+  if(trayListMode ==  0) { //Local CSV
+    numberOfTrays = fileread(availableTrayList, filedir(argv[0]) + trayCSV);
+  } else {                  //Download data from url / google spreadsheets
+    numberOfTrays = netget(availableTrayList, trayListUrl);
+  }
+
+  // Check if everything was ok
+  if (numberOfTrays == 0){
+    dlgMessageBox("Error: Feeder file not found.", "OK");
+    exit(0);
+  }
+
+  //Process feeder data to be TSV instead of CSV and split headline and data
+  availableTrayHeadline = stringReplace(availableTrayList[0], ",", "\t");
+  for(int i = 1; i < numberOfFeeders; i++){
+    availableTrayList[i-1] = stringReplace(availableTrayList[i], ",", " \t");
+  }
+  availableTrayList[numberOfTrays-1] = "";
+  numberOfTrays--;
+
+  //If enabled, autodetect the row columns
+  if(autodetectColumns){
+    parseRowsByHeader();
+  }
+}
+
 
 /**
  * Process the coordinates to determine min/max of the outline
@@ -755,6 +797,7 @@ int showListOfDevices()
   int quantity = 1;
   configRead();
   downloadFeederData();
+  downloadTrayData();
 
   loadBoardInformation();
   widthX = u2mm(maxX);
@@ -828,21 +871,43 @@ int showListOfDevices()
             }
           }
           dlgTabPage("Feeder config") {
-            dlgListView(availableFeederHeadline, availableFeederList, selected, sorted);
+            dlgHBoxLayout {
+              dlgListView(availableFeederHeadline, availableFeederList, selected, sorted);
+              dlgVBoxLayout {
+                dlgGroup("Feeder Config") {
+                  dlgRadioButton("Local CSV", feederListMode);
+                  dlgStringEdit(feederCSV); 
+                  dlgRadioButton("Google spreadsheet", feederListMode);
+                  dlgStringEdit(feederListUrl); 
+                  dlgPushButton("Refresh feeder list") {
+                    downloadFeederData();
+                    dlgAccept();
+                  }
+                }
+                dlgStretch(1);
+              }
+            }
+          }
+          dlgTabPage("Tray config") {
+            dlgHBoxLayout {
+              dlgListView(availableTrayHeadline, availableTrayList, selected, sorted);
+              dlgVBoxLayout {
+                dlgGroup("Tray Config") {
+                  dlgRadioButton("Local CSV", trayListMode);
+                  dlgStringEdit(trayCSV); 
+                  dlgRadioButton("Google spreadsheet", trayListMode);
+                  dlgStringEdit(trayListUrl); 
+                  dlgPushButton("Refresh tray list") {
+                    downloadTrayData();
+                    dlgAccept();
+                  }
+                }
+                dlgStretch(1);
+              }
+            }            
           }
         }
         dlgVBoxLayout {
-          dlgGroup("Feeder Config") {
-            dlgRadioButton("Local CSV", feederListMode);
-            dlgStringEdit(feederCSV); 
-            dlgRadioButton("Google spreadsheet", feederListMode);
-            dlgStringEdit(feederListUrl); 
-            dlgCheckBox("Autodetect columns", autodetectColumns);
-            dlgPushButton("Refresh feeder list") {
-              downloadFeederData();
-              dlgAccept();
-            }
-          }
           dlgGroup("Statistics") { 
             dlgHBoxLayout{ dlgLabel("Parts total:\t\t");         dlgLabel(itoa(pnpStatsPartsTotal)); }
             dlgHBoxLayout{ dlgLabel("Parts ok:\t\t\t");          dlgLabel(itoa(pnpStatsPartsOk));    }
