@@ -384,8 +384,8 @@ void addFeeders(int position)
              getFeederParameter(i, COL_XOFFSET), getFeederParameter(i, COL_YOFFSET),
              getFeederParameter(i, COL_SPACING), getFeederParameter(i, COL_COMPNAME), 
              getFeederParameter(i, COL_HEIGHT), getFeederParameter(i, COL_SPEED),mountValue, 
-             strtod(getFeederParameter(i, COL_LENGTH))*100, 
-             strtod(getFeederParameter(i, COL_WIDTH))*100
+             strtod(getFeederParameter(i, COL_WIDTH))*100, 
+             strtod(getFeederParameter(i, COL_LENGTH))*100
       ); 
 
       stackNumber++;
