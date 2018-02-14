@@ -1,0 +1,267 @@
+//Indicies to the feeder table
+int COL_FEEDERID  = 1;      string NAME_FEEDERID    = "Feeder Number"      ; string DEFAULT_FEEDERID    = "0";
+int COL_COMPNAME  = 2;      string NAME_COMPNAME    = "Component"          ; string DEFAULT_COMPNAME    = "";
+int COL_ALIAS     = 3;      string NAME_ALIAS       = "Aliases"            ; string DEFAULT_ALIAS       = ""; 
+int COL_XOFFSET   = 4;      string NAME_XOFFSET     = "XOffset"            ; string DEFAULT_XOFFSET     = "0";
+int COL_YOFFSET   = 5;      string NAME_YOFFSET     = "YOffset"            ; string DEFAULT_YOFFSET     = "0";
+int COL_HEIGHT    = 6;      string NAME_HEIGHT      = "Height"             ; string DEFAULT_HEIGHT      = "0.5";
+int COL_LENGTH    = 7;      string NAME_LENGTH      = "Length"             ; string DEFAULT_LENGTH      = "0.0";
+int COL_WIDTH     = 8;      string NAME_WIDTH       = "Width"              ; string DEFAULT_WIDTH       = "0.0";
+int COL_SPEED     = 9;      string NAME_SPEED       = "Speed"              ; string DEFAULT_SPEED       = "0";
+int COL_HEAD      = 10;     string NAME_HEAD        = "Head"               ; string DEFAULT_HEAD        = "1";
+int COL_RELTAPE   = 11;     string NAME_RELTAPE     = "Relative Tape Angle"; string DEFAULT_RELTAPE     = "0";
+int COL_SPACING   = 12;     string NAME_SPACING     = "Feed Spacing"       ; string DEFAULT_SPACING     = "4";
+int COL_PLACE     = 13;     string NAME_PLACE       = "Place Component"    ; string DEFAULT_PLACE       = "Y";
+int COL_CHECK_VAC = 14;     string NAME_CHECK_VAC   = "Check Vacuum"       ; string DEFAULT_CHECK_VAC   = "Y";
+int COL_USE_VISION= 15;     string NAME_USE_VISION  = "Use Vision"         ; string DEFAULT_USE_VISION  = "Y"; 
+
+//Indicies to the tray table
+int COL2_NAME     = 1;      string NAME2_NAME       = "Name"               ; string DEFAULT2_NAME       = ""; 
+int COL2_TRAYID   = 2;      string NAME2_TRAYID     = "Tray Number"        ; string DEFAULT2_TRAYID     = ""; 
+int COL2_X1       = 3;      string NAME2_X1         = "X1"                 ; string DEFAULT2_X1         = ""; 
+int COL2_Y1       = 4;      string NAME2_Y1         = "Y1"                 ; string DEFAULT2_Y1         = ""; 
+int COL2_X2       = 5;      string NAME2_X2         = "X2"                 ; string DEFAULT2_X2         = ""; 
+int COL2_Y2       = 6;      string NAME2_Y2         = "Y2"                 ; string DEFAULT2_Y2         = ""; 
+int COL2_XCOUNT   = 7;      string NAME2_XCOUNT     = "Part Count X"       ; string DEFAULT2_XCOUNT     = ""; 
+int COL2_YCOUNT   = 8;      string NAME2_YCOUNT     = "Part Count Y"       ; string DEFAULT2_YCOUNT     = ""; 
+
+
+int     TABLE_INDEX_LIMIT   = 100;    //MSTACK can be 100 at the most
+
+
+string  availableFeederList[];
+string  availableFeederHeadline;
+int     availableFeederIndex[];   //Index of feeder id vs. line, to speed up ULP
+int     numberOfFeeders;
+
+string  availableTrayList[];
+string  availableTrayHeadline;
+int     availableTryIndex[];     //Index of feeder id vs. line, to speed up ULP
+int     numberOfTrays;
+   
+
+
+/**
+ * Add new column to the feeder list
+ * @param   name    Name of the column to add
+ * @param   value   Default value to be added to all columns 
+ */
+void addFeederColum(string name, string value){
+  sprintf(availableFeederHeadline, "%s\t%s", availableFeederHeadline, name);
+  for(int i = 0; i < numberOfFeeders; i++){
+    sprintf(availableFeederList[i], "%s\t%s", availableFeederList[i], value);
+  }
+}
+
+/**
+ * Add new column to the feeder list
+ * @param   name    Name of the column to add
+ * @param   value   Default value to be added to all columns 
+ */
+void addTrayColum(string name, string value){
+  sprintf(availableTrayHeadline, "%s\t%s", availableTrayHeadline, name);
+  for(int i = 0; i < numberOfTrays; i++){
+    sprintf(availableTrayList[i], "%s\t%s", availableTrayList[i], value);
+  }
+}
+
+/** 
+ * Parse feeder list header names
+ */
+void parseFeederColsByHeader(){
+  string columns[];
+  int count = strsplit(columns, availableTrayHeadline, '\t');
+
+  //Invalidate row indices
+  COL_FEEDERID  = -1;
+  COL_COMPNAME  = -1;
+  COL_ALIAS     = -1; 
+  COL_XOFFSET   = -1;
+  COL_YOFFSET   = -1;
+  COL_HEIGHT    = -1;
+  COL_LENGTH    = -1;
+  COL_WIDTH     = -1;
+  COL_SPEED     = -1;
+  COL_HEAD      = -1;
+  COL_RELTAPE   = -1;
+  COL_SPACING   = -1;
+  COL_PLACE     = -1;
+  COL_CHECK_VAC = -1;
+  COL_USE_VISION= -1; 
+
+  //Check what column contains what value
+  for(int i = 0; i < count; i++){
+    string col = stringTrim(columns[i]);
+    //Switch would be nicer here, but eagle doesn't allow for string cases
+    if(col == NAME_FEEDERID   ){COL_FEEDERID    = i;}
+    if(col == NAME_COMPNAME   ){COL_COMPNAME    = i;}
+    if(col == NAME_ALIAS      ){COL_ALIAS       = i;}
+    if(col == NAME_XOFFSET    ){COL_XOFFSET     = i;}
+    if(col == NAME_YOFFSET    ){COL_YOFFSET     = i;}
+    if(col == NAME_HEIGHT     ){COL_HEIGHT      = i;}
+    if(col == NAME_LENGTH     ){COL_LENGTH      = i;}
+    if(col == NAME_WIDTH      ){COL_WIDTH       = i;}
+    if(col == NAME_SPEED      ){COL_SPEED       = i;}
+    if(col == NAME_HEAD       ){COL_HEAD        = i;}
+    if(col == NAME_RELTAPE    ){COL_RELTAPE     = i;}
+    if(col == NAME_SPACING    ){COL_SPACING     = i;}
+    if(col == NAME_PLACE      ){COL_PLACE       = i;}
+    if(col == NAME_CHECK_VAC  ){COL_CHECK_VAC   = i;}
+    if(col == NAME_USE_VISION ){COL_USE_VISION  = i;}
+    
+  }
+
+  //Fill up everything with default data, if not given
+  if(COL_FEEDERID   == -1){ addFeederColum(NAME_FEEDERID  , DEFAULT_FEEDERID  ); COL_FEEDERID   = count++;}
+  if(COL_COMPNAME   == -1){ addFeederColum(NAME_COMPNAME  , DEFAULT_COMPNAME  ); COL_COMPNAME   = count++;}
+  if(COL_ALIAS      == -1){ addFeederColum(NAME_ALIAS     , DEFAULT_ALIAS     ); COL_ALIAS      = count++;}
+  if(COL_XOFFSET    == -1){ addFeederColum(NAME_XOFFSET   , DEFAULT_XOFFSET   ); COL_XOFFSET    = count++;}
+  if(COL_YOFFSET    == -1){ addFeederColum(NAME_YOFFSET   , DEFAULT_YOFFSET   ); COL_YOFFSET    = count++;}
+  if(COL_HEIGHT     == -1){ addFeederColum(NAME_HEIGHT    , DEFAULT_HEIGHT    ); COL_HEIGHT     = count++;}
+  if(COL_LENGTH     == -1){ addFeederColum(NAME_LENGTH    , DEFAULT_LENGTH    ); COL_LENGTH     = count++;}
+  if(COL_WIDTH      == -1){ addFeederColum(NAME_WIDTH     , DEFAULT_WIDTH     ); COL_WIDTH      = count++;}
+  if(COL_SPEED      == -1){ addFeederColum(NAME_SPEED     , DEFAULT_SPEED     ); COL_SPEED      = count++;}
+  if(COL_HEAD       == -1){ addFeederColum(NAME_HEAD      , DEFAULT_HEAD      ); COL_HEAD       = count++;}
+  if(COL_RELTAPE    == -1){ addFeederColum(NAME_RELTAPE   , DEFAULT_RELTAPE   ); COL_RELTAPE    = count++;}
+  if(COL_SPACING    == -1){ addFeederColum(NAME_SPACING   , DEFAULT_SPACING   ); COL_SPACING    = count++;}
+  if(COL_PLACE      == -1){ addFeederColum(NAME_PLACE     , DEFAULT_PLACE     ); COL_PLACE      = count++;}
+  if(COL_CHECK_VAC  == -1){ addFeederColum(NAME_CHECK_VAC , DEFAULT_CHECK_VAC ); COL_CHECK_VAC  = count++;}
+  if(COL_USE_VISION == -1){ addFeederColum(NAME_USE_VISION, DEFAULT_USE_VISION); COL_USE_VISION = count++;}
+
+}
+
+/** 
+ * Parse tray list header names
+ */
+void parseTrayColsByHeader(){
+  string columns[];
+  int count = strsplit(columns, availableTrayHeadline, '\t');
+
+  //Invalidate row indices
+  COL2_NAME     = -1;
+  COL2_TRAYID   = -1;
+  COL2_X1       = -1;
+  COL2_Y1       = -1;
+  COL2_X2       = -1;
+  COL2_Y2       = -1;
+  COL2_XCOUNT   = -1;
+  COL2_YCOUNT   = -1;
+
+  //Check what column contains what value
+  for(int i = 0; i < count; i++){
+    string col = stringTrim(columns[i]);
+    //Switch would be nicer here, but eagle doesn't allow for string cases
+    if(col == NAME2_NAME   ){COL2_NAME     = i;}
+    if(col == NAME2_TRAYID ){COL2_TRAYID   = i;}
+    if(col == NAME2_X1     ){COL2_X1       = i;}
+    if(col == NAME2_Y1     ){COL2_Y1       = i;}
+    if(col == NAME2_X2     ){COL2_X2       = i;}
+    if(col == NAME2_Y2     ){COL2_Y2       = i;}
+    if(col == NAME2_XCOUNT ){COL2_XCOUNT   = i;}
+    if(col == NAME2_YCOUNT ){COL2_YCOUNT   = i;}
+    
+  }
+
+  //Fill up everything with default data, if not given
+  if(COL2_NAME   == -1){ addTrayColum(NAME2_NAME  , DEFAULT2_NAME  ); COL2_NAME   = count++;}
+  if(COL2_TRAYID == -1){ addTrayColum(NAME2_TRAYID, DEFAULT2_TRAYID); COL2_TRAYID = count++;}
+  if(COL2_X1     == -1){ addTrayColum(NAME2_X1    , DEFAULT2_X1    ); COL2_X1     = count++;}
+  if(COL2_Y1     == -1){ addTrayColum(NAME2_Y1    , DEFAULT2_Y1    ); COL2_Y1     = count++;}
+  if(COL2_X2     == -1){ addTrayColum(NAME2_X2    , DEFAULT2_X2    ); COL2_X2     = count++;}
+  if(COL2_Y2     == -1){ addTrayColum(NAME2_Y2    , DEFAULT2_Y2    ); COL2_Y2     = count++;}
+  if(COL2_XCOUNT == -1){ addTrayColum(NAME2_XCOUNT, DEFAULT2_XCOUNT); COL2_XCOUNT = count++;}
+  if(COL2_YCOUNT == -1){ addTrayColum(NAME2_YCOUNT, DEFAULT2_YCOUNT); COL2_YCOUNT = count++;}
+
+}
+
+
+/** 
+ * Get the parameter value of a specific line in the feeder list
+ * @param   line    Line in the feeder list to parse
+ * @param   col     Column to parse
+ * @return parameter value
+ */
+string getFeederParameterByLine(int line, int col){
+  string feederData[];
+  strsplit(feederData, availableFeederList[line], '\t'); 
+  return feederData[col];
+}
+
+
+/**
+ * Initialize an index table for quick parameter resolution
+ */
+void initFeederIndex(){
+  for(int i = 0; i < TABLE_INDEX_LIMIT; i++){
+    availableFeederIndex[i] = -1; 
+  }
+
+  for(int k = 0; k < numberOfFeeders; k++) {
+    string id      = getFeederParameterByLine(k, COL_FEEDERID);
+    int feederId   = strtol(id);
+
+    if(stringTrim(id) != ""){
+      availableFeederIndex[feederId] = k;
+    }
+  }
+}
+
+
+/** 
+ * Get the parameter value of a specific feeder id
+ * @param   line    Line in the feeder list to parse
+ * @param   col     Column to parse
+ * @return parameter value
+ */
+string getFeederParameter(int feeder, int col){
+  if(availableFeederIndex[feeder] >= 0){
+    return getFeederParameterByLine(availableFeederIndex[feeder], col);
+  } else {
+    return "";
+  }
+}
+
+/**
+ * Get the feeder id for a specific part name
+ * @param   name    Combined name of the part
+ * @return If of the feeder
+ */
+int getFeederId(string name) {
+  //The original code was very very slow, we try to speed it up
+  for(int i = 0; i <= numberOfFeeders; i++){
+    string fname   = getFeederParameterByLine(i, COL_COMPNAME);
+    string falias  = getFeederParameterByLine(i, COL_ALIAS); 
+    string id      = getFeederParameterByLine(i, COL_FEEDERID);
+    int feederId   = strtol(id);
+
+    if(stringTrim(id) != ""){
+      //Check component name
+      if(strlwr(stringTrim(fname)) == strlwr(name)){
+        return feederId;
+      }
+
+      //Check aliases 
+      string aliases[];
+      int cnt = strsplit(aliases, falias, ':');     
+      for(int k = 0; k < cnt; k++){
+        if(strlwr(stringTrim(aliases[k])) == strlwr(name)){
+          return feederId;
+        }
+      }       
+    }   
+  }
+  return -1;
+}
+
+/** 
+ * Get the parameter value of a specific line in the tray list
+ * @param   line    Line in the tray list to parse
+ * @param   col     Column to parse
+ * @return parameter value
+ */
+string getTrayParameterByLine(int line, int col){
+  string feederData[];
+  strsplit(feederData, availableTrayList[line], '\t'); 
+  return feederData[col];
+}
+

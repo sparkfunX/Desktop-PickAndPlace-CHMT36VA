@@ -4,9 +4,10 @@
 "<author>Author: Nathan Seidle, nathan@sparkfun.com</author>"
 "<author>Author: Bernhard Woerndl-Aichriedler, bwa@xdevelop.at</author>"
 
-#include "Include_String.ulp"
 // THIS PROGRAM IS PROVIDED AS IS AND WITHOUT WARRANTY OF ANY KIND, EXPRESSED OR IMPLIED
 
+#include "Include_String.ulp"
+#include "Include_Tables.ulp"
 
 //Config options we want to save
 real      offsetY             = 0.0; 
@@ -17,7 +18,7 @@ int       feederListMode      = 1;
 string    feederListUrl       = "https://docs.google.com/spreadsheet/ccc?output=csv&key=" + "1PYF-mgUX6ZCsCE1asVujuJHx-Mq8295c7aTCwVem-NQ";
 string    feederCSV           = "feeders.csv";
 int       trayListMode        = 1;
-string    trayListUrl         = "https://docs.google.com/spreadsheet/ccc?output=csv&key=" + "1PYF-mgUX6ZCsCE1asVujuJHx-Mq8295c7aTCwVem-NQ";
+string    trayListUrl         = "https://docs.google.com/spreadsheets/d/1Ji8-ulmfizbTw11OVJ1ojtQojZbGBaaUEyQ4R7oua1U/export?format=csv&id=1Ji8-ulmfizbTw11OVJ1ojtQojZbGBaaUEyQ4R7oua1U&gid=370861540";
 string    trayCSV             = "trays.csv";
 int       autodetectColumns   = 1;
 int       flipHorizontal      = 1;
@@ -39,13 +40,7 @@ int    pnpStatsPartsDnp;
 int    pnpStatsPartsError;
 string pnpBasefile;
 
-string  usedFeederList[]; //Keeps track of the components in the feeders
-string  availableFeederList[];
-string  availableFeederHeadline;
-int     numberOfFeeders;
-string  availableTrayList[];
-string  availableTrayHeadline;
-int     numberOfTrays;
+
 
 int maxX        = 0;
 int minX        = 0;
@@ -56,23 +51,6 @@ real originX    = 0;
 real originY    = 0;
 real widthX     = 0;
 real widthY     = 0;
-
-//Indicies to the online table
-int COL_FEEDERID  = 1;      string NAME_FEEDERID    = "Feeder Number"      ; string DEFAULT_FEEDERID    = "0";
-int COL_COMPNAME  = 2;      string NAME_COMPNAME    = "Component"          ; string DEFAULT_COMPNAME    = "";
-int COL_ALIAS     = 3;      string NAME_ALIAS       = "Aliases"            ; string DEFAULT_ALIAS       = ""; 
-int COL_XOFFSET   = 4;      string NAME_XOFFSET     = "XOffset"            ; string DEFAULT_XOFFSET     = "0";
-int COL_YOFFSET   = 5;      string NAME_YOFFSET     = "YOffset"            ; string DEFAULT_YOFFSET     = "0";
-int COL_HEIGHT    = 6;      string NAME_HEIGHT      = "Height"             ; string DEFAULT_HEIGHT      = "0.5";
-int COL_LENGTH    = 7;      string NAME_LENGTH      = "Length"             ; string DEFAULT_LENGTH      = "0.0";
-int COL_WIDTH     = 8;      string NAME_WIDTH       = "Width"              ; string DEFAULT_WIDTH       = "0.0";
-int COL_SPEED     = 9;      string NAME_SPEED       = "Speed"              ; string DEFAULT_SPEED       = "0";
-int COL_HEAD      = 10;     string NAME_HEAD        = "Head"               ; string DEFAULT_HEAD        = "1";
-int COL_RELTAPE   = 11;     string NAME_RELTAPE     = "Relative Tape Angle"; string DEFAULT_RELTAPE     = "0";
-int COL_SPACING   = 12;     string NAME_SPACING     = "Feed Spacing"       ; string DEFAULT_SPACING     = "4";
-int COL_PLACE     = 13;     string NAME_PLACE       = "Place Component"    ; string DEFAULT_PLACE       = "Y";
-int COL_CHECK_VAC = 14;     string NAME_CHECK_VAC   = "Check Vacuum"       ; string DEFAULT_CHECK_VAC   = "Y";
-int COL_USE_VISION= 15;     string NAME_USE_VISION  = "Use Vision"         ; string DEFAULT_USE_VISION  = "Y"; 
 
 int MAX_FEEDER    = 99;
 int FEEDER_NEW    = -1;
@@ -95,6 +73,9 @@ void configWrite(){
     printf("%d\n",   autodetectColumns);
     printf("%d\n",   flipHorizontal);
     printf("%s\n",   defaultFileLocation);
+    printf("%d\n",   trayListMode);
+    printf("%s\n",   trayListUrl);
+    printf("%s\n",   trayCSV);
   }
 }
 
@@ -116,147 +97,11 @@ void configRead() {
       autodetectColumns  	= strtol(data[7]);
       flipHorizontal     	= strtol(data[8]);
       defaultFileLocation	= data[9];
+      trayListMode        = strtol(data[10]);
+      trayListUrl         = data[11];
+      trayCSV             = data[12];
     }
   }
-}
-
-/**
- * Add new column to the feeder list
- * @param   name    Name of the column to add
- * @param   value   Default value to be added to all columns 
- */
-void addFeederColum(string name, string value){
-  sprintf(availableFeederHeadline, "%s\t%s", availableFeederHeadline, name);
-  for(int i = 0; i < numberOfFeeders; i++){
-    sprintf(availableFeederList[i], "%s\t%s", availableFeederList[i], value);
-  }
-}
-
-/** 
- * Parse feader list header names
- */
-void parseRowsByHeader(){
-  string columns[];
-  int count = strsplit(columns, availableFeederHeadline, '\t');
-
-  //Invalidate row indices
-  COL_FEEDERID  = -1;
-  COL_COMPNAME  = -1;
-  COL_ALIAS     = -1; 
-  COL_XOFFSET   = -1;
-  COL_YOFFSET   = -1;
-  COL_HEIGHT    = -1;
-  COL_LENGTH    = -1;
-  COL_WIDTH     = -1;
-  COL_SPEED     = -1;
-  COL_HEAD      = -1;
-  COL_RELTAPE   = -1;
-  COL_SPACING   = -1;
-  COL_PLACE     = -1;
-  COL_CHECK_VAC = -1;
-  COL_USE_VISION= -1; 
-
-  //Check what column contains what value
-  for(int i = 0; i < count; i++){
-    string col = stringTrim(columns[i]);
-    //Switch would be nicer here, but eagle doesn't allow for string cases
-    if(col == NAME_FEEDERID   ){COL_FEEDERID    = i;}
-    if(col == NAME_COMPNAME   ){COL_COMPNAME    = i;}
-    if(col == NAME_ALIAS      ){COL_ALIAS       = i;}
-    if(col == NAME_XOFFSET    ){COL_XOFFSET     = i;}
-    if(col == NAME_YOFFSET    ){COL_YOFFSET     = i;}
-    if(col == NAME_HEIGHT     ){COL_HEIGHT      = i;}
-    if(col == NAME_LENGTH     ){COL_LENGTH      = i;}
-    if(col == NAME_WIDTH      ){COL_WIDTH       = i;}
-    if(col == NAME_SPEED      ){COL_SPEED       = i;}
-    if(col == NAME_HEAD       ){COL_HEAD        = i;}
-    if(col == NAME_RELTAPE    ){COL_RELTAPE     = i;}
-    if(col == NAME_SPACING    ){COL_SPACING     = i;}
-    if(col == NAME_PLACE      ){COL_PLACE       = i;}
-    if(col == NAME_CHECK_VAC  ){COL_CHECK_VAC   = i;}
-    if(col == NAME_USE_VISION ){COL_USE_VISION  = i;}
-    
-  }
-
-  //Fill up everything with default data, if not given
-  if(COL_FEEDERID   == -1){ addFeederColum(NAME_FEEDERID  , DEFAULT_FEEDERID  ); COL_FEEDERID   = count++;}
-  if(COL_COMPNAME   == -1){ addFeederColum(NAME_COMPNAME  , DEFAULT_COMPNAME  ); COL_COMPNAME   = count++;}
-  if(COL_ALIAS      == -1){ addFeederColum(NAME_ALIAS     , DEFAULT_ALIAS     ); COL_ALIAS      = count++;}
-  if(COL_XOFFSET    == -1){ addFeederColum(NAME_XOFFSET   , DEFAULT_XOFFSET   ); COL_XOFFSET    = count++;}
-  if(COL_YOFFSET    == -1){ addFeederColum(NAME_YOFFSET   , DEFAULT_YOFFSET   ); COL_YOFFSET    = count++;}
-  if(COL_HEIGHT     == -1){ addFeederColum(NAME_HEIGHT    , DEFAULT_HEIGHT    ); COL_HEIGHT     = count++;}
-  if(COL_LENGTH     == -1){ addFeederColum(NAME_LENGTH    , DEFAULT_LENGTH    ); COL_LENGTH     = count++;}
-  if(COL_WIDTH      == -1){ addFeederColum(NAME_WIDTH     , DEFAULT_WIDTH     ); COL_WIDTH      = count++;}
-  if(COL_SPEED      == -1){ addFeederColum(NAME_SPEED     , DEFAULT_SPEED     ); COL_SPEED      = count++;}
-  if(COL_HEAD       == -1){ addFeederColum(NAME_HEAD      , DEFAULT_HEAD      ); COL_HEAD       = count++;}
-  if(COL_RELTAPE    == -1){ addFeederColum(NAME_RELTAPE   , DEFAULT_RELTAPE   ); COL_RELTAPE    = count++;}
-  if(COL_SPACING    == -1){ addFeederColum(NAME_SPACING   , DEFAULT_SPACING   ); COL_SPACING    = count++;}
-  if(COL_PLACE      == -1){ addFeederColum(NAME_PLACE     , DEFAULT_PLACE     ); COL_PLACE      = count++;}
-  if(COL_CHECK_VAC  == -1){ addFeederColum(NAME_CHECK_VAC , DEFAULT_CHECK_VAC ); COL_CHECK_VAC  = count++;}
-  if(COL_USE_VISION == -1){ addFeederColum(NAME_USE_VISION, DEFAULT_USE_VISION); COL_USE_VISION = count++;}
-
-}
-
-/** 
- * Get the parameter value of a specific line in the feeder list
- * @param   line    Line in the feeder list to parse
- * @param   col     Column to parse
- * @return parameter value
- */
-string getFeederParameterByLine(int line, int col){
-  string feederData[];
-  strsplit(feederData, availableFeederList[line], '\t'); 
-  return feederData[col];
-}
-
-/** 
- * Get the parameter value of a specific feeder id
- * @param   line    Line in the feeder list to parse
- * @param   col     Column to parse
- * @return parameter value
- */
-string getFeederParameter(int feeder, int col){
-  //Check if the table is aligned correctly (line 1 is feeder 1)
-  if(feeder > 0) {
-    if(strtod(getFeederParameterByLine(feeder-1, COL_FEEDERID)) == feeder){
-      return getFeederParameterByLine(feeder-1, col);
-    }
-  }
-
-  //If not aligned, we need to work harder
-  for(int i = 0; i < numberOfFeeders; i++){
-    if(strtod(getFeederParameterByLine(i, COL_FEEDERID)) == feeder){
-      return getFeederParameterByLine(i, col);
-    }
-  }    
-  return "";
-}
-
-/**
- * Get the feeder id for a specific part name
- * @param   name    Combined name of the part
- * @return If of the feeder
- */
-int getFeederId(string name) {
-  for(int i = 0; i <= MAX_FEEDER; i++){
-    string fname   = getFeederParameter(i, COL_COMPNAME);
-    string falias  = getFeederParameter(i, COL_ALIAS); 
-
-    //Check component name
-    if(strlwr(stringTrim(fname)) == strlwr(name)){
-      return i;
-    }
-
-    //Check aliases 
-    string aliases[];
-    int cnt = strsplit(aliases, falias, ':');     
-    for(int k = 0; k < cnt; k++){
-      if(strlwr(stringTrim(aliases[k])) == strlwr(name)){
-        return i;
-      }
-    }
-  }
-  return -1;
 }
 
 /**
@@ -451,9 +296,16 @@ void addComponents(int position)
       //Most all Eagle FPs are correct but we have to subtract 90 because
       //the tapes are mounted 90 degrees from the board
       real convertedAngle = pnpAngle[i] - 90;
+
+      //For trays, we don't need to correct anything,
+      //just place them in the tray as in the eagle footprint
+      if(pnpFeeder[i] >= 88){
+        convertedAngle = pnpAngle[i];
+      }
+
       //However, some feeders/FPs were designed not horizontal so we correct on a component by component basis
-	  real componentRotation = strtod(getFeederParameter(pnpFeeder[i], COL_RELTAPE));
-	  convertedAngle = convertedAngle + componentRotation;
+	    real componentRotation = strtod(getFeederParameter(pnpFeeder[i], COL_RELTAPE));
+	    convertedAngle = convertedAngle + componentRotation;
 	  
       if (convertedAngle > 180) convertedAngle -= 360;
 
@@ -499,7 +351,33 @@ void addICTray()
   //ICTray,0,88,209,55.5,353,55.5,7,1,0
   printf("\n");
   printf("Table,No.,ID,CenterX,CenterY,IntervalX,IntervalY,NumX,NumY,Start\n");
+  for(int i = 0; i < numberOfTrays; i++){
+    string id = getTrayParameterByLine(i, COL2_TRAYID);
+    int trayid = strtol(id);
 
+    if(stringTrim(id) != ""){
+      //Our IC has a size to it, so we need to add that to our positions
+      real x1 = strtod(getTrayParameterByLine(i, COL2_X1));
+      real y1 = strtod(getTrayParameterByLine(i, COL2_Y1));
+      real x2 = strtod(getTrayParameterByLine(i, COL2_X2));
+      real y2 = strtod(getTrayParameterByLine(i, COL2_Y2));
+
+      real sizex = strtod(getFeederParameter(trayid, COL_LENGTH));
+      real sizey = strtod(getFeederParameter(trayid, COL_WIDTH));
+
+      //x acis is normal
+      x1 = x1 + sizex/2;
+      x2 = x2 + sizex/2;
+
+      //y axis is inverted
+      y1 = y1 - sizey/2;
+      y2 = y2 - sizey/2;
+
+      printf("ICTray,%d,%d, %.2f, %.2f, %.2f, %.2f, %s, %s, 0\n", 
+        i, trayid, x1, y1, x2, y2, getTrayParameterByLine(i, COL2_XCOUNT), getTrayParameterByLine(i, COL2_YCOUNT)
+     );
+    }
+  }
   
 }
 
@@ -603,8 +481,9 @@ void downloadFeederData(){
 
   //If enabled, autodetect the row columns
   if(autodetectColumns){
-    parseRowsByHeader();
+    parseFeederColsByHeader();
   }
+  initFeederIndex();
 }
 
 /** 
@@ -634,7 +513,7 @@ void downloadTrayData(){
 
   //If enabled, autodetect the row columns
   if(autodetectColumns){
-    parseRowsByHeader();
+    parseTrayColsByHeader();
   }
 }
 
