@@ -18,8 +18,8 @@ string    feederListUrl       = "https://docs.google.com/spreadsheet/ccc?output=
 string    feederCSV           = "feeders.csv";
 int       autodetectColumns   = 1;
 int       flipHorizontal      = 1;
-int       useAutomaticOffset  = 1;
 string 	  defaultFileLocation = "";
+int       useAutomaticOffset  = 1;
 
 string pnpName[];
 string pnpDesignator[];
@@ -89,6 +89,7 @@ void configWrite(){
     printf("%d\n",   autodetectColumns);
     printf("%d\n",   flipHorizontal);
     printf("%s\n",   defaultFileLocation);
+    printf("%d\n",   useAutomaticOffset);
   }
 }
 
@@ -110,6 +111,7 @@ void configRead() {
       autodetectColumns  	= strtol(data[7]);
       flipHorizontal     	= strtol(data[8]);
       defaultFileLocation	= data[9];
+      useAutomaticOffset	= strtol(data[10]);
     }
   }
 }
