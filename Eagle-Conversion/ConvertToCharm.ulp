@@ -67,9 +67,10 @@ int COL_PLACE     = 13;     string NAME_PLACE       = "Place Component"    ; str
 int COL_CHECK_VAC = 14;     string NAME_CHECK_VAC   = "Check Vacuum"       ; string DEFAULT_CHECK_VAC   = "Y";
 int COL_USE_VISION= 15;     string NAME_USE_VISION  = "Use Vision"         ; string DEFAULT_USE_VISION  = "Y"; 
 
-int MAX_FEEDER    = 30;
-int FEEDER_NEW    = -1;
-int FEEDER_DNP    = 0;
+int MAX_FEEDER    		= 30;
+int FEEDER_NEW    		= -1;
+int FEEDER_DNP    		= 0; //This comes from eagle brd file
+int FEEDER_NO_MOUNT    	= 30; //This comes from spreadsheet
 
 string configFile  = filesetext(argv[0], ".cfg");
 
@@ -242,26 +243,31 @@ int getFeederId(string name) {
       return i;
     }
 
+	//Check if name from spreadsheet is inside name of component
+	int pos = strstr(strlwr(name), strlwr(stringTrim(fname)));
+	if(pos != -1){ //Found!
+		return i;
+	}
+
     //Check aliases 
     string aliases[];
     int cnt = strsplit(aliases, falias, ':'); //aliases[] is now loaded with separated list of aliases for this component
     
 	for(int k = 0; k < cnt; k++){
 
-	  //See if name of the component matches one of the aliases
+	  //Check if name of the component matches one of the aliases
 	  if(strlwr(stringTrim(aliases[k])) == strlwr(name)){
         return i;
       }
 	  
-      if(i == 30)
+	  //Check if this alias is inside the component name
+	  if(strlwr(stringTrim(aliases[k])) != "") //The strsplit above returns records with zero length, ignore them
 	  {
-		  dlgMessageBox(strlwr(stringTrim(aliases[k])));
+		  int pos = strstr(strlwr(name), strlwr(stringTrim(aliases[k])));
+		  if(pos != -1){ //Found!
+			return i;
+		  }
 	  }
-	  //See if this alias is inside the component name
-	  int pos = strstr(strlwr(stringTrim(aliases[k])), strlwr(name));
-	  if(pos != -1){ //Found!
-        return i;
-      }
 
     }
   }
@@ -274,7 +280,7 @@ int getFeederId(string name) {
  * @return Transformed X coordinate
  */
 int transformCoordinateX(int x, int pos){
-  //Pre default, use the automatically generated corrdinates
+  //Pre default, use the automatically generated coordinates
   int oX = minX;
   int wX = maxX;
 
@@ -305,7 +311,7 @@ int transformCoordinateX(int x, int pos){
  * @return Transformed X coordinate
  */
 int transformCoordinateY(int y, int pos){
-  //Pre default, use the automatically generated corrdinates
+  //Pre default, use the automatically generated coordinates
   int oY = minY;
   int wY = maxY;
 
@@ -776,6 +782,7 @@ int showListOfDevices()
 {
   int selected = 0;
   int sorted = 0;
+  int sortedFeedersUsed = 1;
   int quantity = 1;
   configRead();
   downloadFeederData();
@@ -800,7 +807,9 @@ int showListOfDevices()
       if(pnpFeeder[i] == FEEDER_NEW){
         feeder = "No feeder assigned!";
       } else if(pnpFeeder[i] == FEEDER_DNP){
-        feeder = "Do not mount!";
+        feeder = "No Mount";
+      } else if(pnpFeeder[i] == FEEDER_NO_MOUNT){
+        feeder = "No Mount";
       } else {
         sprintf(feeder, "%d", pnpFeeder[i]);
       }
@@ -835,16 +844,31 @@ int showListOfDevices()
         sprintf(feeder, "%d", pnpFeeder[i]);
       }
 
-  	  //See if this is already in the list
-	  if (strstr(listOfUsedFeeders, pnpName[i]) == -1)
+	  //Ignore parts from record NoMount row
+	  if(pnpFeeder[i] != FEEDER_NO_MOUNT)
 	  {
-		//Add this component name to the list of used feeders
-		listOfUsedFeeders += pnpName[i] + '\n';
-		
-		//Add this feeder info to the list of strings
-		  sprintf(usedFeederList[usedFeederCount++], "%s\t%s\t", 
-			  pnpName[i], feeder
-		  );
+		  //See if this feeder is already in the list
+		  if (strstr(listOfUsedFeeders, pnpName[i]) == -1)
+		  {
+			//Add this component name to the list of used feeders
+			listOfUsedFeeders += pnpName[i] + '\n';
+			
+			//Add this feeder info to the list of strings
+			if(feeder == "None")
+			{
+				//We don't have a feeder for this component so maintain its name
+			  sprintf(usedFeederList[usedFeederCount++], "%s\t%s\t", 
+				  feeder, pnpName[i]
+			  );
+			}
+			else
+			{
+			  //We have a nickname for this component from the spreadsheet so use it instead
+			  sprintf(usedFeederList[usedFeederCount++], "%s\t%s\t", 
+				  feeder, getFeederParameter(pnpFeeder[i], COL_COMPNAME)
+			  );
+			}
+		  }
 	  }
     } 
 		
@@ -887,24 +911,24 @@ int showListOfDevices()
             dlgListView(availableFeederHeadline, availableFeederList, selected, sorted);
           }
           dlgTabPage("Feeders Used") {
-            dlgListView(availableFeederHeadline, usedFeederList, selected, sorted);
+            dlgListView("Feeder Number\tPart Name", usedFeederList, selected, sortedFeedersUsed);
           }
         }
         dlgVBoxLayout {
           dlgGroup("Feeder Config") {
             dlgRadioButton("Local CSV", feederListMode);
             dlgStringEdit(feederCSV); 
-            dlgRadioButton("Google spreadsheet", feederListMode);
+            dlgRadioButton("Google Spreadsheet", feederListMode);
             dlgStringEdit(feederListUrl); 
             dlgCheckBox("Autodetect columns", autodetectColumns);
-            dlgPushButton("Refresh feeder list") {
+            dlgPushButton("Refresh Feeder List") {
               downloadFeederData();
               dlgAccept();
             }
           }
           dlgGroup("Statistics") { 
             dlgHBoxLayout{ dlgLabel("Parts total:\t\t");         dlgLabel(itoa(pnpStatsPartsTotal)); }
-            dlgHBoxLayout{ dlgLabel("Parts ok:\t\t\t");          dlgLabel(itoa(pnpStatsPartsOk));    }
+            dlgHBoxLayout{ dlgLabel("Parts to mount:\t\t");      dlgLabel(itoa(pnpStatsPartsOk));    }
             dlgHBoxLayout{ dlgLabel("Parts not assigned:\t\t");  dlgLabel(itoa(pnpStatsPartsNew));   }
             dlgHBoxLayout{ dlgLabel("Parts not mounted:\t\t");   dlgLabel(itoa(pnpStatsPartsDnp));   }
           }
