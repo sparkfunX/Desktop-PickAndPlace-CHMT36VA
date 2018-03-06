@@ -36,7 +36,6 @@ int    pnpStatsPartsDnp;
 int    pnpStatsPartsError;
 string pnpBasefile;
 
-string  usedFeederList[]; //Keeps track of the components in the feeders
 string  availableFeederList[];
 string  availableFeederHeadline;
 int     numberOfFeeders;
@@ -68,7 +67,7 @@ int COL_PLACE     = 13;     string NAME_PLACE       = "Place Component"    ; str
 int COL_CHECK_VAC = 14;     string NAME_CHECK_VAC   = "Check Vacuum"       ; string DEFAULT_CHECK_VAC   = "Y";
 int COL_USE_VISION= 15;     string NAME_USE_VISION  = "Use Vision"         ; string DEFAULT_USE_VISION  = "Y"; 
 
-int MAX_FEEDER    = 29;
+int MAX_FEEDER    = 30;
 int FEEDER_NEW    = -1;
 int FEEDER_DNP    = 0;
 
@@ -129,7 +128,7 @@ void addFeederColum(string name, string value){
 }
 
 /** 
- * Parse feader list header names
+ * Parse feeder list header names
  */
 void parseRowsByHeader(){
   string columns[];
@@ -236,7 +235,7 @@ string getFeederParameter(int feeder, int col){
 int getFeederId(string name) {
   for(int i = 0; i <= MAX_FEEDER; i++){
     string fname   = getFeederParameter(i, COL_COMPNAME);
-    string falias  = getFeederParameter(i, COL_ALIAS); 
+    string falias  = getFeederParameter(i, COL_ALIAS);
 
     //Check component name
     if(strlwr(stringTrim(fname)) == strlwr(name)){
@@ -245,11 +244,25 @@ int getFeederId(string name) {
 
     //Check aliases 
     string aliases[];
-    int cnt = strsplit(aliases, falias, ':');     
-    for(int k = 0; k < cnt; k++){
-      if(strlwr(stringTrim(aliases[k])) == strlwr(name)){
+    int cnt = strsplit(aliases, falias, ':'); //aliases[] is now loaded with separated list of aliases for this component
+    
+	for(int k = 0; k < cnt; k++){
+
+	  //See if name of the component matches one of the aliases
+	  if(strlwr(stringTrim(aliases[k])) == strlwr(name)){
         return i;
       }
+	  
+      if(i == 30)
+	  {
+		  dlgMessageBox(strlwr(stringTrim(aliases[k])));
+	  }
+	  //See if this alias is inside the component name
+	  int pos = strstr(strlwr(stringTrim(aliases[k])), strlwr(name));
+	  if(pos != -1){ //Found!
+        return i;
+      }
+
     }
   }
   return -1;
@@ -351,7 +364,7 @@ void addFeeders(int position)
     for(int k = 0; k < pnpCount; k++){
       if(pnpPos[k] == position && pnpFeeder[k] == i){
         used = 1;
-        break;
+		break;
       }
     }
 
@@ -451,10 +464,19 @@ void addComponents(int position)
 	  real componentRotation = strtod(getFeederParameter(pnpFeeder[i], COL_RELTAPE));
 	  convertedAngle = convertedAngle + componentRotation;
 	  
-      if (convertedAngle > 180) convertedAngle -= 360;
+      if (convertedAngle > 180) convertedAngle -= 360; //CharmHigh machine expects rotation of -180 to 180
 
       int speed = strtol(getFeederParameter(pnpFeeder[i], COL_SPEED));
       if(speed == 100){speed = 0;}  //100% is value 0
+
+      //0b.0000.0ABC
+      //A = 1 = Use Vision
+      //A = 0 = No Vision
+      //B = 1 = Use Vacuum Detection
+      //B = 0 = No Vacuum Detection
+      //C = 1 = Skip placement
+      //C = 0 = Place this component
+      //Example: 3 = no place, vac, no vis
 
       int mountValue = 0;
       if(stringTrim(getFeederParameter(pnpFeeder[i], COL_PLACE)) == "N"){
@@ -676,8 +698,8 @@ void loadBoardInformation() {
 
       //If the part is SMD, process it
       if (isSmd) {
-    		real xCenter = (xmin + xmax) / 2;
-    		real yCenter = (ymin + ymax) / 2;
+		real xCenter = (xmin + xmax) / 2;
+   		real yCenter = (ymin + ymax) / 2;
 		
         pnpName[pnpCount]       = E.value + '-' + E.package.name;
         pnpDesignator[pnpCount] = E.name;
@@ -771,6 +793,10 @@ int showListOfDevices()
     for(int i = 0; i < pnpCount; i++){
       partlist[i] = "";
       string feeder = "";
+
+  	  //Check the feeder spreadsheet to see if we should ignore this part (may be a fiducial)
+	  string noMountAlias = getFeederParameterByLine(29, COL_ALIAS);
+
       if(pnpFeeder[i] == FEEDER_NEW){
         feeder = "No feeder assigned!";
       } else if(pnpFeeder[i] == FEEDER_DNP){
@@ -793,13 +819,41 @@ int showListOfDevices()
           pnpAngle[i], feeder
       );
     } 
-  
+	
+	//Generate Feeders Used list. Helpful for seeing what feeders we need to load or assign
+    string listOfUsedFeeders;
+	string usedFeederList[]; //Used in GUI
+	int usedFeederCount = 0;
+    for(i = 0; i < pnpCount; i++){
+
+      string feeder = "";
+      if(pnpFeeder[i] == FEEDER_NEW){
+        feeder = "None";
+      } else if(pnpFeeder[i] == FEEDER_DNP){
+        feeder = "Do not mount!";
+      } else {
+        sprintf(feeder, "%d", pnpFeeder[i]);
+      }
+
+  	  //See if this is already in the list
+	  if (strstr(listOfUsedFeeders, pnpName[i]) == -1)
+	  {
+		//Add this component name to the list of used feeders
+		listOfUsedFeeders += pnpName[i] + '\n';
+		
+		//Add this feeder info to the list of strings
+		  sprintf(usedFeederList[usedFeederCount++], "%s\t%s\t", 
+			  pnpName[i], feeder
+		  );
+	  }
+    } 
+		
     //Display main dialog
     int dstatus = dlgDialog("Feeder configuration"){
       dlgHBoxLayout{
         dlgVBoxLayout dlgSpacing(800);
         dlgTabWidget {
-          dlgTabPage("Parts overview") {
+          dlgTabPage("Parts Overview") {
             dlgHBoxLayout {
               dlgListView("Designator\tComponent\tPosition\tBoard X\tPlacement X\tBoard Y\tPlacement Y\tAngle\tFeeder", partlist, selected, sorted);
               dlgVBoxLayout {
@@ -829,8 +883,11 @@ int showListOfDevices()
               }
             }
           }
-          dlgTabPage("Feeder config") {
+          dlgTabPage("Feeder Database") {
             dlgListView(availableFeederHeadline, availableFeederList, selected, sorted);
+          }
+          dlgTabPage("Feeders Used") {
+            dlgListView(availableFeederHeadline, usedFeederList, selected, sorted);
           }
         }
         dlgVBoxLayout {
