@@ -364,7 +364,8 @@ void addFeeders(int position)
 
   int stackNumber = 0;
 
-  for(int i = 1; i <= MAX_FEEDER; i++){
+  //Stop at MAX_FEEDER-1 because feeder 30 is the "No Mount" feeder from the spreadsheet
+  for(int i = 1; i <= MAX_FEEDER - 1; i++){
     //Check if feeder is used
     int used = 0;
     for(int k = 0; k < pnpCount; k++){
@@ -404,7 +405,7 @@ void addFeeders(int position)
              stackNumber, i, 
              getFeederParameter(i, COL_XOFFSET), getFeederParameter(i, COL_YOFFSET),
              getFeederParameter(i, COL_SPACING), getFeederParameter(i, COL_COMPNAME), 
-             getFeederParameter(i, COL_HEIGHT), getFeederParameter(i, COL_SPEED),mountValue, 
+             getFeederParameter(i, COL_HEIGHT), getFeederParameter(i, COL_SPEED), mountValue, 
              strtod(getFeederParameter(i, COL_WIDTH))*100, 
              strtod(getFeederParameter(i, COL_LENGTH))*100
       ); 
@@ -462,7 +463,7 @@ void addComponents(int position)
   int componentID = 1;
 
   for(int i = 0; i < pnpCount; i++){
-    if(pnpPos[i] == position && pnpFeeder[i] > 0){
+    if(pnpPos[i] == position && pnpFeeder[i] > 0 && pnpFeeder[i] != FEEDER_NO_MOUNT){
       //Most all Eagle FPs are correct but we have to subtract 90 because
       //the tapes are mounted 90 degrees from the board
       real convertedAngle = pnpAngle[i] - 90;
@@ -955,7 +956,7 @@ int showListOfDevices()
       }
     };
 
-    //Write the cnfig file
+    //Write the config file
     configWrite();
 
     //If are done, abort
