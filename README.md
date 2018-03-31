@@ -7,6 +7,8 @@ The CHMT36VA is a $2800 desktop sized pick and place machine from Charm High. We
 
 The main purposed of this repo is the [Eagle Conversion ULP](https://github.com/sparkfunX/Desktop-PickAndPlace-CHMT36VA/tree/master/Eagle-Conversion) and the English Language file. The Conversion ULP offers the user a GUI that looks like this:
 
+Do you have one of these machines? Want to share your tips and tricks and ask other owners a question? Join the [Desktop Pick and Place google group](https://groups.google.com/d/forum/desktop-pick-and-place)!
+
 ![Conversion GUI](https://github.com/sparkfunX/Desktop-PickAndPlace-CHMT36VA/raw/master/Conversion%20GUI.jpg)
 
 This allows the user to take in an Eagle BRD file and output the recipe file that the CHMT36VA expects. This cuts down on setup time of the machine dramatically.
