@@ -899,32 +899,31 @@ int showListOfDevices()
 	  //Ignore parts from record NoMount row
 	  if(pnpFeeder[i] != FEEDER_NO_MOUNT)
 	  {
+		//If this feeder is new, it doesn't have a nickname  
 		if(pnpFeeder[i] == FEEDER_NEW){
 		  //See if this feeder is already in the list
 		  if (strstr(listOfUsedFeeders, pnpName[i]) == -1)
 		  {
-			//Add this component's nickname to the list of used feeders
+			//Add this component name to the list of used feeders
 			listOfUsedFeeders += pnpName[i] + '\n';
 
-			//Add this feeder info to the list of strings
-				//We don't have a feeder for this component so maintain its name
-			  sprintf(usedFeederList[usedFeederCount++], "%s\t%s\t", 
-				  feeder, pnpName[i]
-			  );
+			//We don't have a feeder for this component so maintain its name
+			sprintf(usedFeederList[usedFeederCount++], "%s\t%s\t", 
+			  feeder, pnpName[i]
+			);
 		  }
-			
 		}
-		  //See if this feeder is already in the list
-		  else if (strstr(listOfUsedFeeders, getFeederParameter(pnpFeeder[i], COL_COMPNAME) ) == -1)
-		  {
-			//Add this component's nickname to the list of used feeders
-			listOfUsedFeeders += getFeederParameter(pnpFeeder[i], COL_COMPNAME) + '\n';
+		//Known feeder: See if this feeder's nickname is already in the list
+		else if (strstr(listOfUsedFeeders, getFeederParameter(pnpFeeder[i], COL_COMPNAME) ) == -1)
+		{
+		  //Add this component's nickname to the list of used feeders
+		  listOfUsedFeeders += getFeederParameter(pnpFeeder[i], COL_COMPNAME) + '\n';
 			
-			  //We have a nickname for this component from the spreadsheet so use it instead
-			  sprintf(usedFeederList[usedFeederCount++], "%s\t%s\t", 
-				  feeder, getFeederParameter(pnpFeeder[i], COL_COMPNAME)
-			  );
-		  }
+		  //We have a nickname for this component from the spreadsheet so use it
+		  sprintf(usedFeederList[usedFeederCount++], "%s\t%s\t", 
+		    feeder, getFeederParameter(pnpFeeder[i], COL_COMPNAME)
+		  );
+		}
 	  }
     } 
 		
