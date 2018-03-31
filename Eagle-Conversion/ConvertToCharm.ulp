@@ -472,6 +472,7 @@ void addComponents(int position)
 	  convertedAngle = convertedAngle + componentRotation;
 	  
       if (convertedAngle > 180) convertedAngle -= 360; //CharmHigh machine expects rotation of -180 to 180
+      if (convertedAngle < -180) convertedAngle += 360; //CharmHigh machine expects rotation of -180 to 180
 
       int speed = strtol(getFeederParameter(pnpFeeder[i], COL_SPEED));
       if(speed == 100){speed = 0;}  //100% is value 0
