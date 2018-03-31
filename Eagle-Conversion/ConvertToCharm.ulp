@@ -234,24 +234,23 @@ string getFeederParameter(int feeder, int col){
  * @return If of the feeder
  */
 int getFeederId(string name) {
-  //Make everything lower case and trim off any white space
-  name = strlwr(stringTrim(name));
+  
+  name = strlwr(stringTrim(name)); //Make lower case and trim off any white space
 
   //Step through feeder spreadsheet. Stop before we get to MAX_FEEDER which should be the NoMount line
   for(int i = 0; i <= MAX_FEEDER - 1; i++){
     
-	//Make everything lower case and trim off any white space
-	string fname   = strlwr(stringTrim(getFeederParameter(i, COL_COMPNAME)));
+	string fname   = strlwr(stringTrim(getFeederParameter(i, COL_COMPNAME))); //Make lower case and trim off any white space
 	
 	//Issue 16. Skip the empty lines in the feeder spreadsheet that have no component name.
 	if(fname == "") continue;
 
-    //Does this part name match the component name from spreadsheet 
+    //Hard compare: Does this part name match the component name from spreadsheet 
     if(fname == name){
       return i;
     }
 
-	//Check if fname from spreadsheet is inside name of component
+	//Soft compare: Check if fname from spreadsheet is inside name of component
 	//This can lead to bad things. "2K-0603" will be found within "22K-0603" and a 2K will be mounted
 	//where a 22K should be.
 	//int pos = strstr(name, fname);
@@ -292,34 +291,32 @@ int getFeederId(string name) {
     }
   }
 
-  //If we've gotten this far the name is not in component column or aliases. Compare the NoMount aliases loosely against
-  //the name we are looking for
+  //If we've gotten this far the name is not in component column or aliases. Soft compare the NoMount aliases against
+  //the name we are looking for.
 	
-	//Get aliases from the NoMount line (MAX_FEEDER is the last line of the spreadsheet)
-	string falias  = strlwr(stringTrim(getFeederParameter(MAX_FEEDER, COL_ALIAS)));
+  //Get aliases from the NoMount line (MAX_FEEDER is the last line of the spreadsheet)
+  string falias  = strlwr(stringTrim(getFeederParameter(MAX_FEEDER, COL_ALIAS)));
 
-	//Check to see if the name we are looking for is inside the aliases 
-	string aliases[];
-	int cnt = strsplit(aliases, falias, ':'); //aliases[] is now loaded with separated list of aliases for this component
+  //Check to see if the name we are looking for is inside the aliases 
+  string aliases[];
+  int cnt = strsplit(aliases, falias, ':'); //aliases[] is now loaded with separated list of aliases for this component
 
-	for(int k = 0; k < cnt; k++){
-
-	  //Check if this name is inside the alias list
-	  if(aliases[k] != "") //The strsplit above returns records with zero length, ignore them
-	  {
-		  //Hard compare: check if name of the component matches one of the aliases
-		  if(aliases[k] == name){
-			return MAX_FEEDER;
-		  }
-
-		  //Soft compare: check if name of the component is inside one of the aliases
-		  int pos = strstr(name, aliases[k]);
-		  if(pos != -1){ //Found!
-			return MAX_FEEDER;
-		  }
+  for(int k = 0; k < cnt; k++){
+	//Check if this name is inside the alias list
+	if(aliases[k] != "") //The strsplit above returns records with zero length, ignore them
+	{
+	  //Hard compare: check if name of the component matches one of the aliases
+	  if(aliases[k] == name){
+		return MAX_FEEDER;
 	  }
 
+	  //Soft compare: check if name of the component is inside one of the aliases
+	  int pos = strstr(name, aliases[k]);
+	  if(pos != -1){ //Found!
+		return MAX_FEEDER;
+	  }
 	}
+  }
 
   return -1; //Part not found in the feeder table
 }
