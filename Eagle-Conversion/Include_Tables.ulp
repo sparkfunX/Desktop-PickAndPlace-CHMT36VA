@@ -70,7 +70,7 @@ void addTrayColum(string name, string value){
  */
 void parseFeederColsByHeader(){
   string columns[];
-  int count = strsplit(columns, availableTrayHeadline, '\t');
+  int count = strsplit(columns, availableFeederHeadline, '\t');
 
   //Invalidate row indices
   COL_FEEDERID  = -1;
@@ -294,10 +294,10 @@ int getFeederId(string name) {
         if(aliases[k] == name){
           return 0;
         }
-      }
-      int pos = strstr(name, aliases[k]);
-      if(pos != -1){
-        return 0;
+        int pos = strstr(name, aliases[k]);
+        if(pos != -1){
+          return 0;
+        }       
       }
     }    
   }
