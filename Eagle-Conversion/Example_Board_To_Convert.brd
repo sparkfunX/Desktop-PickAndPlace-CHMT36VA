@@ -1359,6 +1359,7 @@ These rules have been curated by SparkFuns DFM commitee. After doing much resear
 </element>
 <element name="J5" library="SparkFun-Connectors" package="1X01_NO_SILK" value="" x="1.27" y="7.62"/>
 <element name="J8" library="SparkFun-Connectors" package="1X02_NO_SILK" value="" x="8.89" y="1.27" rot="R180"/>
+<element name="JP1" library="SparkFun" package="MICRO-FIDUCIAL" value="FIDUCIALUFIDUCIAL" x="29.718" y="24.638"/>
 </elements>
 <signals>
 <signal name="3.3V">

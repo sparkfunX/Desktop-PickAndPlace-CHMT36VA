@@ -237,6 +237,9 @@ int getFeederId(string name) {
     string fname   = strlwr(stringTrim(getFeederParameterByLine(i, COL_COMPNAME))); //Make lower case and trim off any white space
     string id      = getFeederParameterByLine(i, COL_FEEDERID);
     int feederId   = strtol(id);  
+    if(fname == "stop"){   //Stop when we need to
+      break;
+    }
     if(feederId == 0) {    //We handle DNP's later
       continue;
     }
@@ -252,10 +255,13 @@ int getFeederId(string name) {
 
   //Secondly run a compare to the aliase, when full match was not successfull
   for(i = 0; i <= numberOfFeeders; i++){
-    //Make everything lower case and trim off any white space
-    string falias   = strlwr(stringTrim(getFeederParameterByLine(i, COL_ALIAS))); //Make lower case and trim off any white space
+    string fname   = strlwr(stringTrim(getFeederParameterByLine(i, COL_COMPNAME))); 
+    string falias   = strlwr(stringTrim(getFeederParameterByLine(i, COL_ALIAS)));  
     string id      = getFeederParameterByLine(i, COL_FEEDERID);
     int feederId   = strtol(id);
+    if(fname == "stop"){   //Stop when we need to
+      break;
+    }
     if(feederId == 0) {    //We handle DNP's later
       continue;
     }
@@ -277,9 +283,13 @@ int getFeederId(string name) {
   //Secondly run a compare to the aliase, when full match was not successfull
   for(i = 0; i <= numberOfFeeders; i++){
     //Make everything lower case and trim off any white space
-    string falias   = strlwr(stringTrim(getFeederParameterByLine(i, COL_ALIAS))); //Make lower case and trim off any white space
+    string fname   = strlwr(stringTrim(getFeederParameterByLine(i, COL_COMPNAME))); 
+    string falias   = strlwr(stringTrim(getFeederParameterByLine(i, COL_ALIAS))); 
     string id      = getFeederParameterByLine(i, COL_FEEDERID);
     int feederId   = strtol(id);
+    if(fname == "stop"){   //Stop when we need to
+      break;
+    }
     if(feederId != 0) {    //Now we handle DNP's
       continue;
     }
