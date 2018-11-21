@@ -1,0 +1,29 @@
+/* 
+
+This is a refactor of the ConvertToCharm ULP by Nathan Siedle and Bernhard Woerndl-Aichriedler.
+The goal is to provide a less busy user interface, primarily by hiding components that should not be 
+considered for mounting.
+
+*/
+
+
+#include "z_Include_SF_BOM.ulp"
+
+
+
+
+
+
+
+
+
+
+if(board)
+{
+
+}
+else
+{
+	dlgMessageBox("\n    Start this ULP in a Board    \n");
+    exit (0); 
+}

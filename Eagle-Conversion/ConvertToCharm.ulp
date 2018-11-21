@@ -545,13 +545,18 @@ void addComponents(int position)
       }
 
       printf("EComponent, %d, %d, %s, %d, %.2f, %.2f, %.2f, %.2f, %d, %d, %s, %s\n",
-             componentNumber, componentID, getFeederParameter(pnpFeeder[i], COL_HEAD), pnpFeeder[i],
+             componentNumber, 
+             componentID, 
+             getFeederParameter(pnpFeeder[i], COL_HEAD), 
+             pnpFeeder[i],
              u2mm(transformCoordinateX(pnpX[i], pnpPos[i])), 
              u2mm(transformCoordinateY(pnpY[i], pnpPos[i])), 
-             convertedAngle, strtod(getFeederParameter(pnpFeeder[i], COL_HEIGHT)),
-             mountValue, speed, 
-             pnpDesignator[i], getFeederParameter(pnpFeeder[i], COL_COMPNAME)); //mountValue: 6 is to place, 7 is to skip
-
+             convertedAngle, 
+             strtod(getFeederParameter(pnpFeeder[i], COL_HEIGHT)),
+             mountValue, //mountValue: 6 is to place, 7 is to skip
+             speed, 
+             pnpDesignator[i], 
+             getFeederParameter(pnpFeeder[i], COL_COMPNAME)); 
       //Example output
       //Table,No.,ID,PHead,STNo.,DeltX,DeltY,Angle,Height,Skip,Speed,Explain,Note
       //EComponent,0,1,1,1,16.51,12.68,0,0.5,6,0,C4, 0.1uF
@@ -878,10 +883,10 @@ int showListOfDevices()
       );
     } 
 	
-	//Generate Feeders Used list. Helpful for seeing what feeders we need to load or assign
+	   //Generate Feeders Used list. Helpful for seeing what feeders we need to load or assign
     string listOfUsedFeeders;
-	string usedFeederList[]; //Used in GUI
-	int usedFeederCount = 0;
+    string usedFeederList[]; //Used in GUI
+	  int usedFeederCount = 0;
     for(i = 0; i < pnpCount; i++){
 
       string feeder = "";
