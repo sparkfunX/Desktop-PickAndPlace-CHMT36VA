@@ -1,0 +1,11 @@
+Designator,MFG PN,Description,Datasheet
+U23,SN74LVC4245A ,Octal Bus Transceiver and 3.3-V to 5-V Shifter With 3-State Outputs,http://www.ti.com/lit/ds/symlink/sn74lvc4245a.pdf
+"U10,U26,U25",SNx4HCT245 ,Octal Bus Transceivers With 3-State Outputs,http://www.ti.com/lit/ds/symlink/sn74hct245.pdf
+"U12, U17, U20, U21, U22",AM26C32I - ,AM26C32 Quadruple Differential Line Receiver,http://www.ti.com/lit/ds/symlink/am26c32.pdf
+"U28, U29",ADuM1201ARZ,1 Mbps Dual Channel Digital Isolator,https://www.mouser.com/datasheet/2/609/ADuM1200_1201-879029.pdf
+U32,SP232EEN-L,RS-232 Interface IC RS232 ESD +/-15KV temp -40C to 85C,https://www.mouser.com/datasheet/2/146/SP202E-SP232E-SP233E-SP310E-SP312E-536253.pdf
+U30,ADM2587E,DGTL ISO RS422/RS485 20SOIC,https://www.analog.com/media/en/technical-documentation/data-sheets/ADM2582E_2587E.pdf
+U24,W25Q64JV,3V 64M-BIT SERIAL FLASH MEMORY,https://www.winbond.com/resource-files/w25q64jv%20spi%20%20%20revc%2006032016%20kms.pdf
+U7,ADuM1200ARZ,1 Mbps Dual Channel Digital Isolator,https://www.mouser.com/datasheet/2/609/ADuM1200_1201-879029.pdf
+U19,STM32F407ZET6,IC MCU 32BIT 512KB FLASH 144LQFP,http://www.st.com/content/ccc/resource/technical/document/datasheet/ef/92/76/6d/bb/c2/4f/f7/DM00037051.pdf/files/DM00037051.pdf/jcr:content/translations/en.DM00037051.pdf
+,,,
