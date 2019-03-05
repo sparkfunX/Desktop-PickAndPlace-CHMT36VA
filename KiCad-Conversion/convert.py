@@ -352,39 +352,34 @@ def add_components(f):
     record_number = 0
     
     for i in range(len(components)):
-        if components[i].feeder_ID == "NoMount":
-            # Do nothing with this device
+        if components[i].feeder_ID in ["NoMount", "NewSkip"]:
             components[i].place_component = False
 
-
-        if components[i].feeder_ID == "NewSkip":
-            # Do nothing with this device
-            pass
-        else:
-            working_name = get_working_name(components[i].component_ID)
             
-            mount_value = 6 # Place record
-            if components[i].place_component == False: 
-                mount_value = 7 #Skip this record
+        working_name = get_working_name(components[i].component_ID)
+        
+        mount_value = 6 # Place record
+        if components[i].place_component == False: 
+            mount_value = 7 #Skip this record
 
-            f.write('EComponent,{},{},{},{},{:.8g},{:.8g},{:.4g},{:.8g},{},{},{},{},{}\n'.format(
-                record_number, 
-                record_ID,
-                components[i].head,
-                components[i].feeder_ID,
-                float(components[i].x),
-                float(components[i].y),
-                float(components[i].rotation),
-                float(components[i].height),
-                mount_value,
-                0,
-                components[i].designator,
-                working_name,
-                0   # Delay
-                ))
-            
-            record_number += 1
-            record_ID += 1
+        f.write('EComponent,{},{},{},{},{:.8g},{:.8g},{:.4g},{:.8g},{},{},{},{},{}\n'.format(
+            record_number, 
+            record_ID,
+            components[i].head,
+            components[i].feeder_ID,
+            float(components[i].x),
+            float(components[i].y),
+            float(components[i].rotation),
+            float(components[i].height),
+            mount_value,
+            0,
+            components[i].designator,
+            working_name,
+            0   # Delay
+            ))
+        
+        record_number += 1
+        record_ID += 1
 
 def add_ic_tray(f):
     # Add any IC tray info
