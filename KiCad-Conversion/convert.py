@@ -449,20 +449,20 @@ def main():
                     available_feeders[j].used_in_design = True
 
     print("\nComponents to mount:")
-    for i in range(len(components)):
-        if components[i].feeder_ID == "NoMount":
-            # Do nothing with this device
-            pass
-        elif components[i].feeder_ID == "NewSkip":
-            print(str(components[i].component_ID) + ") " + components[i].component_name() + " (New component)")
-        else:
-            print(str(components[i].component_ID) + ") " + components[i].component_name() + " (Feeder " + components[i].feeder_ID + ")")
+    for comp in [c for c in components if c.feeder_ID not in ['NoMount', 'NewSkip']]:
+        print (comp)
+
+
+    print("\nComponents Not Mounted:")
+    for comp in [c for c in components if c.feeder_ID in ['NoMount', 'NewSkip']]:
+        print (comp)
+        
 
         
     print("\nUsed Feeders:")
     for i in range(len(available_feeders)):
         if available_feeders[i].used_in_design == True:
-            print(available_feeders[i].feeder_ID + ") " + available_feeders[i].device_name)
+            print(available_feeders[i])
     
     # Output to machine recipe file
     with open(outfile, 'w', newline='\r\n') as f:
