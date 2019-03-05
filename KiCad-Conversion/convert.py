@@ -115,7 +115,7 @@ def load_feeder_info_from_net():
     # I'm too tired to use OAuth at the moment
     # url = f'https://docs.google.com/spreadsheets/d/{spreadsheet_key}/gviz/tq?tqx=out:csv&sheet=Sheet1'
     url = 'https://docs.google.com/a/in2being.com/spreadsheets/d/e/2PACX-1vTaXeDZJ020DsO_dfdO8qo-IzxEilpH2wYKh59SUifdkgYyjC6AqCqn4ulOKNMErpLHSNs4kZAR9EOq/pub?gid=0&single=true&output=csv'
-    print(f'Fetching feeder data from: {url}')
+    print('Fetching feeder data from: {}'.format(url))
     url_data = urllib.request.urlopen(url).read().decode('utf-8')
     response = io.StringIO(url_data)
     fp = csv.reader(response, delimiter=',')
