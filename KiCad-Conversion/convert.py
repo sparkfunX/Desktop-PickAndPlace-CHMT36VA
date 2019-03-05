@@ -14,6 +14,8 @@ import re
 
 import io
 import os
+import argparse
+
 
 # Used for pulling data from g spreadsheet
 import csv 
@@ -417,21 +419,19 @@ def add_calibration_factor(f):
     f.write("\n")
     f.write("CalibFator,0,0,0,0,0,1,1,0\n") # Typo is required
 
-def main():
-    outfile = "workFile.dpv"
-
-    if len(sys.argv) < 3:
-        print('ERROR: not enough arguments, see README!\n')
-        sys.exit(-1)
-
-    if len(sys.argv) > 3:
-        # Set output file
-        outfile = sys.argv[3]
+def main(component_position_file, feeder_config_file, outfile=None):
+    # basic file verification
+    for f in [component_position_file, feeder_config_file]:
+        if not os.path.isfile(f):
+            print ("ERROR: {} is not an existing file".format(f))
+            sys.exit(-1)
     
-    component_position_file = sys.argv[1]
+
+
+    outfile = "workFile.dpv" if outfile is None else outfile
 
     # Load all known feeders from file
-    load_feeder_info_from_file(sys.argv[2])
+    load_feeder_info_from_file(feeder_config_file)
         
     # Get position info from file
     load_component_info(component_position_file)
@@ -479,4 +479,12 @@ def main():
     print('Wrote output to {}\n'.format(outfile))
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description='Process pos files from KiCAD to this nice, CharmHigh software')
+    parser.add_argument('component_position_file', type=str, help='KiCAD position file in ASCII')
+    parser.add_argument('feeder_config_file', type=str, help='Feeder CSV file')
+    
+    parser.add_argument('--output', type=str, help='Output file')
+
+    args = parser.parse_args()
+
+    main(args.component_position_file, args.feeder_config_file, args.output)
