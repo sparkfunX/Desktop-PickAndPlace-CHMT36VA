@@ -113,8 +113,7 @@ def load_feeder_info_from_net():
 
     # This is the public spreadsheet that contains all our feeder data
     # I'm too tired to use OAuth at the moment
-    # url = f'https://docs.google.com/spreadsheets/d/{spreadsheet_key}/gviz/tq?tqx=out:csv&sheet=Sheet1'
-    url = 'https://docs.google.com/a/in2being.com/spreadsheets/d/e/2PACX-1vTaXeDZJ020DsO_dfdO8qo-IzxEilpH2wYKh59SUifdkgYyjC6AqCqn4ulOKNMErpLHSNs4kZAR9EOq/pub?gid=0&single=true&output=csv'
+    url = 'https://docs.google.com/spreadsheets/d/{}/gviz/tq?tqx=out:csv&sheet=Sheet1'.format(spreadsheet_key)
     print('Fetching feeder data from: {}'.format(url))
     url_data = urllib.request.urlopen(url).read().decode('utf-8')
     response = io.StringIO(url_data)
