@@ -92,7 +92,6 @@ def locate_feeder_info(component_ID):
             return "NoMount"
         
     #If we still can't find it mark it as a new feeder but with skip/don't mount
-    
     return "NewSkip"
 
 def get_working_name(component_ID):
@@ -355,8 +354,10 @@ def add_components(f):
     for i in range(len(components)):
         if components[i].feeder_ID == "NoMount":
             # Do nothing with this device
-            pass
-        elif components[i].feeder_ID == "NewSkip":
+            components[i].place_component = False
+
+
+        if components[i].feeder_ID == "NewSkip":
             # Do nothing with this device
             pass
         else:
