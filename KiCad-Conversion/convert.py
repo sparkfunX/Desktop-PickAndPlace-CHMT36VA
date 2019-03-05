@@ -147,7 +147,7 @@ def load_feeder_info_from_net():
 
 def load_feeder_info_from_file(path):
     # Read from local file
-    print(f'Fetching feeder data from: {path}')
+    print('Fetching feeder data from: {}'.format(path))
     with open(path) as fp:
         csvreader = csv.reader(fp)
         next(csvreader, None)  # skip header
@@ -263,8 +263,8 @@ def add_header(f, outfile, component_position_file):
     d = datetime.datetime.now()
 
     f.write("separated\n")
-    f.write(f"FILE,{outfile}\n")
-    f.write(f"PCBFILE,{component_position_file}\n")
+    f.write("FILE,{}\n".format(outfile))
+    f.write("PCBFILE,{}\n".format(component_position_file))
     f.write("DATE,{:02d}/{:02d}/{:02d}\n".format(d.year, d.month, d.day))
     f.write("TIME,{:02d}:{:02d}:{:02d}\n".format(d.hour, d.minute, d.second))
     f.write("PANELYPE,0\n")
@@ -482,7 +482,7 @@ def main():
         
         add_calibration_factor(f)
 
-    print(f'Wrote output to {outfile}\n')
+    print('Wrote output to {}\n'.format(outfile))
 
 if __name__ == '__main__':
     main()
