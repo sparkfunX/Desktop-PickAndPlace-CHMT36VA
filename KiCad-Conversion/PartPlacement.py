@@ -45,7 +45,10 @@ class PartPlacement():
     # Print the name in a format that is easy to read in CharmHigh program
     def component_name(self):
         out = "{}".format(self.value)
-        # if self.footprint:
-        #     out += "-{}".format(self.footprint)
+        if self.footprint:
+            out += "-{}".format(self.footprint)
         return out
+
+    def __repr__(self):
+        return "<Component " + str(self.component_ID) + ": " + self.component_name() + "; " + "Feeder: " + self.feeder_ID + ">"
 

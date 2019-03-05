@@ -51,4 +51,4 @@ class Feeder():
         self.used_in_design = used_in_design
 
     def __repr__(self):
-        return "<Reel {0}>".format(self.reel_number)
+        return "<Feeder {}: {}>".format(self.feeder_ID, self.device_name)
