@@ -71,10 +71,9 @@ def locate_feeder_info(component_ID):
     # Search the feeder list of aliases as well
     # Returns the ID of the feeder
     
-    for i in range(len(components)):
-        if component_ID == components[i].component_ID:
-            component_name = components[i].component_name()
-            break
+    assert (component_ID < len(components))
+
+    component_name = components[component_ID].component_name()
 
     for i in range(len(available_feeders)):
         if component_name == available_feeders[i].device_name:
