@@ -276,7 +276,7 @@ def add_feeders(f):
     
     station_number = 0
     for i in range(len(available_feeders)):
-        if available_feeders[i].used_in_design == True:
+        if available_feeders[i].count_in_design != 0:
             
             mount_value = 6
             if available_feeders[i].place_component == False:
@@ -444,8 +444,7 @@ def main():
     for i in range(len(components)):
         for j in range(len(available_feeders)):
             if available_feeders[j].feeder_ID == components[i].feeder_ID:
-                if available_feeders[j].used_in_design == False:
-                    available_feeders[j].used_in_design = True
+                available_feeders[j].count_in_design += 1
 
     print("\nComponents to mount:")
     for comp in [c for c in components if c.feeder_ID not in ['NoMount', 'NewSkip']]:
@@ -460,7 +459,7 @@ def main():
         
     print("\nUsed Feeders:")
     for i in range(len(available_feeders)):
-        if available_feeders[i].used_in_design == True:
+        if available_feeders[i].count_in_design != 0:
             print(available_feeders[i])
     
     # Output to machine recipe file

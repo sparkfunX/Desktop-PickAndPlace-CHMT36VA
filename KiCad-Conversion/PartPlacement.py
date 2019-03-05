@@ -50,5 +50,5 @@ class PartPlacement():
         return out
 
     def __repr__(self):
-        return "<Component " + str(self.component_ID) + ": " + self.component_name() + "; " + "Feeder: " + self.feeder_ID + ">"
+        return "<Component " + str(self.component_ID) + ": " + "Des: "+ self.designator + ", " + self.component_name() + "; " + "Feeder: " + self.feeder_ID + ">"
 

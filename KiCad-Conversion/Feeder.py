@@ -24,7 +24,7 @@ class Feeder():
         footprint = None,
         value = None,
         comment = None,
-        used_in_design = False
+        count_in_design = 0
         ):
 
         self.feeder_ID = feeder_ID
@@ -48,7 +48,7 @@ class Feeder():
         self.footprint = footprint
         self.value = value
         self.comment = comment
-        self.used_in_design = used_in_design
+        self.count_in_design = count_in_design
 
     def __repr__(self):
-        return "<Feeder {}: {}>".format(self.feeder_ID, self.device_name)
+        return "<Feeder {}: {} - Count: {}>".format(self.feeder_ID, self.device_name, self.count_in_design)
