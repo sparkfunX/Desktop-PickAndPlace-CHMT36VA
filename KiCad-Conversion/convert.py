@@ -102,7 +102,7 @@ def get_working_name(component_ID):
     feeder_ID = locate_feeder_info(component_ID)
     
     if feeder_ID == "NoMount": return feeder_ID
-    if feeder_ID == "NewSkip": return feeder_ID
+    if feeder_ID == "NewSkip": return components[component_ID].component_name()
     
     for i in range(len(available_feeders)):
         if feeder_ID == available_feeders[i].feeder_ID:
