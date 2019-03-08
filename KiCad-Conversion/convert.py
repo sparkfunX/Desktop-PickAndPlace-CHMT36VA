@@ -202,15 +202,13 @@ def load_component_info(component_position_file, mirror_x, board_width):
                 # Find this component in the available feeders if possible
                 components[componentCount].feeder_ID = locate_feeder_info(componentCount)
                 
+                centroid_correction_x = 0.0
+                centroid_correction_y = 0.0
                 angle_compensation = 0.0
-
+                head = 0
+                    
+                # Find this feeder
                 if(components[componentCount].feeder_ID != "NoMount" and components[componentCount].feeder_ID != "NewSkip"):
-
-                    # Find this feeder
-                    centroid_correction_x = 0.0
-                    centroid_correction_y = 0.0
-                    angle_compensation = 0.0
-                    head = 0
                     for i in range(len(available_feeders)):
                         if(available_feeders[i].feeder_ID == components[componentCount].feeder_ID):
                             centroid_correction_x = available_feeders[i].centroid_correction_x
@@ -219,45 +217,42 @@ def load_component_info(component_position_file, mirror_x, board_width):
                             head = available_feeders[i].head
                             break
 
-                    # Correct tape orientation (mounted 90 degrees from the board)
-                    components[componentCount].rotation = components[componentCount].rotation - 90
+                # Correct tape orientation (mounted 90 degrees from the board)
+                components[componentCount].rotation = components[componentCount].rotation - 90
 
-                    # Add an angle compensation to this component (feeder by feeder)
-                    components[componentCount].rotation = components[componentCount].rotation + angle_compensation
+                # Add an angle compensation to this component (feeder by feeder)
+                components[componentCount].rotation = components[componentCount].rotation + angle_compensation
 
-                    # Correct rotations to between -180 and 180
-                    if(components[componentCount].rotation < -180):
-                        components[componentCount].rotation = components[componentCount].rotation + 360
-                    elif(components[componentCount].rotation > 180):
-                        components[componentCount].rotation = components[componentCount].rotation - 360
-                        
-                    # Mirror rotation if needed
-                    if(mirror_x):
-                        components[componentCount].rotation = -components[componentCount].rotation
-
-                    # There are some components that have a centroid point in the wrong place (Qwiic Connector)
-                    # If this component has a correction, use it
-                    if(components[componentCount].feeder_ID != "NoMount" and components[componentCount].feeder_ID != "NewSkip"):
+                # Correct rotations to between -180 and 180
+                if(components[componentCount].rotation < -180):
+                    components[componentCount].rotation = components[componentCount].rotation + 360
+                elif(components[componentCount].rotation > 180):
+                    components[componentCount].rotation = components[componentCount].rotation - 360
                     
-                        # Correct the coordinates of this component
-                        if(components[componentCount].rotation == -180.0):
-                            components[componentCount].x = components[componentCount].x + centroid_correction_y
-                            components[componentCount].y = components[componentCount].y + centroid_correction_x
-                        elif(components[componentCount].rotation == 180.0): # Duplicate of first
-                            components[componentCount].x = components[componentCount].x + centroid_correction_y
-                            components[componentCount].y = components[componentCount].y + centroid_correction_x
-                        elif(components[componentCount].rotation == -90.0):
-                            components[componentCount].y = components[componentCount].y + centroid_correction_y
-                            components[componentCount].x = components[componentCount].x + centroid_correction_x
-                        elif(components[componentCount].rotation == 0.0):
-                            components[componentCount].x = components[componentCount].x - centroid_correction_y
-                            components[componentCount].y = components[componentCount].y - centroid_correction_x
-                        elif(components[componentCount].rotation == 90.0):
-                            components[componentCount].y = components[componentCount].y - centroid_correction_y
-                            components[componentCount].x = components[componentCount].x - centroid_correction_x
+                # Mirror rotation if needed
+                if(mirror_x):
+                    components[componentCount].rotation = -components[componentCount].rotation
 
-                    # Assign pick head
-                    components[componentCount].head = head
+                # There are some components that have a centroid point in the wrong place (Qwiic Connector)
+                # If this component has a correction, use it
+                if(components[componentCount].rotation == -180.0):
+                    components[componentCount].x = components[componentCount].x + centroid_correction_y
+                    components[componentCount].y = components[componentCount].y + centroid_correction_x
+                elif(components[componentCount].rotation == 180.0): # Duplicate of first
+                    components[componentCount].x = components[componentCount].x + centroid_correction_y
+                    components[componentCount].y = components[componentCount].y + centroid_correction_x
+                elif(components[componentCount].rotation == -90.0):
+                    components[componentCount].y = components[componentCount].y + centroid_correction_y
+                    components[componentCount].x = components[componentCount].x + centroid_correction_x
+                elif(components[componentCount].rotation == 0.0):
+                    components[componentCount].x = components[componentCount].x - centroid_correction_y
+                    components[componentCount].y = components[componentCount].y - centroid_correction_x
+                elif(components[componentCount].rotation == 90.0):
+                    components[componentCount].y = components[componentCount].y - centroid_correction_y
+                    components[componentCount].x = components[componentCount].x - centroid_correction_x
+
+                # Assign pick head
+                components[componentCount].head = head
 
                 # Add any global corrections
                 components[componentCount].y = components[componentCount].y - global_y_adjust
