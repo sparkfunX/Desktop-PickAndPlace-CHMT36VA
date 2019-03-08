@@ -175,7 +175,7 @@ def load_feeder_info_from_file(path):
 
     print("Feeder update complete")
 
-def load_component_info(component_position_file):
+def load_component_info(component_position_file, mirror_x, board_width):
 
     # Get position info from file
     componentCount = 0
@@ -230,6 +230,10 @@ def load_component_info(component_position_file):
                         components[componentCount].rotation = components[componentCount].rotation + 360
                     elif(components[componentCount].rotation > 180):
                         components[componentCount].rotation = components[componentCount].rotation - 360
+                        
+                    # Mirror rotation if needed
+                    if(mirror_x):
+                        components[componentCount].rotation = -components[componentCount].rotation
 
                     # There are some components that have a centroid point in the wrong place (Qwiic Connector)
                     # If this component has a correction, use it
@@ -258,8 +262,11 @@ def load_component_info(component_position_file):
                 # Add any global corrections
                 components[componentCount].y = components[componentCount].y - global_y_adjust
                 components[componentCount].x = components[componentCount].x - global_x_adjust
-
-
+                
+                # Add the board width if the file should be mirrored along x
+                if (mirror_x):
+                    components[componentCount].x = components[componentCount].x + board_width
+                
                 componentCount = componentCount + 1
             line = fp.readline() # Get the next line
     fp.close()
@@ -424,7 +431,7 @@ def add_calibration_factor(f):
     f.write("\n")
     f.write("CalibFator,0,0,0,0,0,1,1,0\n") # Typo is required
 
-def main(component_position_file, feeder_config_file, outfile=None):
+def main(component_position_file, feeder_config_file, outfile=None, mirror_x=False, board_width=0):
     # basic file verification
     for f in [component_position_file, feeder_config_file]:
         if not os.path.isfile(f):
@@ -439,7 +446,7 @@ def main(component_position_file, feeder_config_file, outfile=None):
     load_feeder_info_from_file(feeder_config_file)
         
     # Get position info from file
-    load_component_info(component_position_file)
+    load_component_info(component_position_file, mirror_x, board_width)
     
     # Mark all the available feeders that have a component in this design
     for i in range(len(components)):
@@ -489,7 +496,11 @@ if __name__ == '__main__':
     parser.add_argument('feeder_config_file', type=str, help='Feeder CSV file')
     
     parser.add_argument('--output', type=str, help='Output file')
+    
+    parser.add_argument('--mirror_x', action="store_true", help='Mirror components along X axis. Useful when processing a file with components mounted on the bottom.')
+    
+    parser.add_argument('--board_width', type=float, help='Board width in mm. Use in conjunction with --mirror-x to make sure the components are aligned to the bottom left side.')
 
     args = parser.parse_args()
 
-    main(args.component_position_file, args.feeder_config_file, args.output)
+    main(args.component_position_file, args.feeder_config_file, args.output, args.mirror_x, args.board_width)
