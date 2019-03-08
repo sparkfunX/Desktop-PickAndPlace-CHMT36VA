@@ -219,13 +219,17 @@ def load_component_info(component_position_file):
                             head = available_feeders[i].head
                             break
 
-                    # Correct rotations to between -180 and 180
+                    # Correct tape orientation (mounted 90 degrees from the board)
                     components[componentCount].rotation = components[componentCount].rotation - 90
-                    if(components[componentCount].rotation < -180):
-                        components[componentCount].rotation = components[componentCount].rotation + 180
-                    
-                    # Add an angle compensation to this component
+
+                    # Add an angle compensation to this component (feeder by feeder)
                     components[componentCount].rotation = components[componentCount].rotation + angle_compensation
+
+                    # Correct rotations to between -180 and 180
+                    if(components[componentCount].rotation < -180):
+                        components[componentCount].rotation = components[componentCount].rotation + 360
+                    elif(components[componentCount].rotation > 180):
+                        components[componentCount].rotation = components[componentCount].rotation - 360
 
                     # There are some components that have a centroid point in the wrong place (Qwiic Connector)
                     # If this component has a correction, use it
