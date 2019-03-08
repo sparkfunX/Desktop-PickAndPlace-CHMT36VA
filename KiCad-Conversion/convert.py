@@ -252,12 +252,13 @@ def load_component_info(component_position_file):
                             components[componentCount].y = components[componentCount].y - centroid_correction_y
                             components[componentCount].x = components[componentCount].x - centroid_correction_x
 
-                    # Add any global corrections
-                    components[componentCount].y = components[componentCount].y - global_y_adjust
-                    components[componentCount].x = components[componentCount].x - global_x_adjust
-                    
                     # Assign pick head
                     components[componentCount].head = head
+
+                # Add any global corrections
+                components[componentCount].y = components[componentCount].y - global_y_adjust
+                components[componentCount].x = components[componentCount].x - global_x_adjust
+
 
                 componentCount = componentCount + 1
             line = fp.readline() # Get the next line
