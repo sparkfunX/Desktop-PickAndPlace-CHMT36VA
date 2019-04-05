@@ -32,6 +32,11 @@ Repository Contents
 * **/Software** - The various versions of the Windows based Charm High software
 * **/User-Manuals** - Various manuals from different machines in an attempt to piece together various poorly translated or documented features
 
+Related Projects
+----------------
+
+* [PNPConvert](https://github.com/hydra/pnpconvert) Conversion utility with DipTrace support, written in Groovy.
+
 License Information
 -------------------
 
