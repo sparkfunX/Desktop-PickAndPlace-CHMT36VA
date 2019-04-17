@@ -21,6 +21,8 @@ import argparse
 import csv 
 import urllib.request, urllib.error, urllib.parse
 
+import pyexcel
+
 from Feeder import Feeder
 from PartPlacement import PartPlacement
 from FileOperations import FileOperations
@@ -148,30 +150,27 @@ def load_feeder_info_from_net():
 def load_feeder_info_from_file(path):
     # Read from local file
     print('Fetching feeder data from: {}'.format(path))
-    with open(path) as fp:
-        csvreader = csv.reader(fp)
-        next(csvreader, None)  # skip header
-        for row in csvreader:
-            if(row[0] != "Stop"):
-                # Add a new feeder using these values
-                available_feeders.append(Feeder(feeder_ID=row[1], 
-                    device_name=row[2], 
-                    stack_x_offset=stof(row[3]),
-                    stack_y_offset=stof(row[4]),
-                    height=stof(row[5]),
-                    speed=stoi(row[6]),
-                    head=stoi(row[7]),
-                    angle_compensation=stoi(row[8]),
-                    feed_spacing=stoi(row[9]),
-                    place_component=row[10],
-                    check_vacuum=row[11],
-                    use_vision=row[12],
-                    centroid_correction_x=stof(row[13]),
-                    centroid_correction_y=stof(row[14]),
-                    aliases=row[15]
-                    ))
-            else:
-                break # We don't want to read in values after STOP
+    for row in pyexcel.get_array(file_name=path, start_row=1): # skip header
+        if(row[0] != "Stop"):
+            # Add a new feeder using these values
+            available_feeders.append(Feeder(feeder_ID=row[1], 
+                device_name=row[2], 
+                stack_x_offset=stof(row[3]),
+                stack_y_offset=stof(row[4]),
+                height=stof(row[5]),
+                speed=stoi(row[6]),
+                head=stoi(row[7]),
+                angle_compensation=stoi(row[8]),
+                feed_spacing=stoi(row[9]),
+                place_component=row[10],
+                check_vacuum=row[11],
+                use_vision=row[12],
+                centroid_correction_x=stof(row[13]),
+                centroid_correction_y=stof(row[14]),
+                aliases=row[15]
+                ))
+        else:
+            break # We don't want to read in values after STOP
 
     print("Feeder update complete")
 
@@ -488,7 +487,7 @@ def main(component_position_file, feeder_config_file, outfile=None, mirror_x=Fal
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process pos files from KiCAD to this nice, CharmHigh software')
     parser.add_argument('component_position_file', type=str, help='KiCAD position file in ASCII')
-    parser.add_argument('feeder_config_file', type=str, help='Feeder CSV file')
+    parser.add_argument('feeder_config_file', type=str, help='Feeder definition file. Supported file formats : csv, ods, fods, xls, xlsx,...')
     
     parser.add_argument('--output', type=str, help='Output file')
     
