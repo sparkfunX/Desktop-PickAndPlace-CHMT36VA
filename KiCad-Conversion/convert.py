@@ -269,8 +269,8 @@ def add_header(f, outfile, component_position_file):
     d = datetime.datetime.now()
 
     f.write("separated\n")
-    f.write("FILE,{}\n".format(outfile))
-    f.write("PCBFILE,{}\n".format(component_position_file))
+    f.write("FILE,{}\n".format(os.path.basename(outfile)))
+    f.write("PCBFILE,{}\n".format(os.path.basename(component_position_file)))
     f.write("DATE,{:02d}/{:02d}/{:02d}\n".format(d.year, d.month, d.day))
     f.write("TIME,{:02d}:{:02d}:{:02d}\n".format(d.hour, d.minute, d.second))
     f.write("PANELYPE,0\n")
