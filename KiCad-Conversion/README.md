@@ -22,7 +22,7 @@ As of KiCad v5.1.0 :
 
 Remember to set the auxiliary axis origin at the bottom left of the PCB, so that all the components positions are related to the PCB corner.
 
-Export the *pos files using File > Fabrication outputs > Footprint Position (.pos) File.
+Export the *.pos files using File > Fabrication outputs > Footprint Position (.pos) File.
 
 Choose the following options : ASCII / Millimeters / Separate files from front and back.
 
@@ -35,6 +35,7 @@ You can get detailed usage information here : https://www.sparkfun.com/sparkx/bl
 Let's have a look at the most basic usage : a single PCB with components on the top side only. 
 
 You just have to run the script specifying your .pos file path and your feeder data file path : 
+
     python3 convert.py PROJECT-top.pos FEEDER_DATA.ods
 
 The following file formats are supported for the feeder data file : csv, ods/fods, xls/xlsx. You may have to install extra pyexcel packages to support all of these formats.
@@ -64,16 +65,20 @@ You should export the .pos file from the single PCB file (not the panel). From t
 ![Panel offset and spacing](doc/panel_parameters.png)
 
 Then run the script as usual, specifying the X and Y offset : 
+
     python3 convert.py PROJECT-top.pos FEEDER_DATA.ods --offset X Y
 
 From the Charmhigh software, under the "Batch" tab, you can now switch to "Array" mode and set the number of PCBs in either direction and the spacing.
 
 You will have to provide the panel fiducials coordinates in the "PCB calibrate" tab (or you can calibrate on the first PCB but it won't be as precise).
 
-If one of the PCBs on the panel is defective, you can add a "Skip" record to disable it. AFAIK the numbering scheme is the one on the previous drawing.
+If one of the PCBs on the panel is defective, you can add a "Skip" record to disable it. The numbering scheme is drawn on the previous drawing.
 
 ### Bottom components on a panel
-Run: 
+This is the same as for the top components, except that you should measure the offset while looking at the board from the bottom. You can do this easily using the View > Flip board view command that is present in the last KiCad versions.
+
+You should run: 
+
     python3 convert.py PROJECT-top.pos FEEDER_DATA.ods --mirror_x --board_width W --offset X Y
 
-with W the width of a single PCB ; X and Y the offset **between the bottom right PCB and the bottom right panel corner**. 
+with W the width of a **single PCB** ; X and Y the offset from the flipped view.
