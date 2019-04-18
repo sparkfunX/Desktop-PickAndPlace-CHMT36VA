@@ -2,6 +2,9 @@
 /Eagle-Conversion/ConvertToCharm.cfg
 /KiCad-Conversion/credentials.txt
 
+# Kicad tool output
+/KiCad-Conversion/output
+
 # Ignore compiled python files
 *.pyc
 

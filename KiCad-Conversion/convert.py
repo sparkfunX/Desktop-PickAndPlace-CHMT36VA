@@ -433,8 +433,10 @@ def main(component_position_file, feeder_config_file, outfile=None, mirror_x=Fal
             sys.exit(-1)
     
 
-
-    outfile = "workFile.dpv" if outfile is None else outfile
+    if outfile is None:
+        basename = os.path.splitext(os.path.basename(component_position_file))[0]
+        outfile = os.path.join('output', f"{datetime.datetime.now():%Y%m%d-%H%M%S}-{basename}.dpv")
+        os.makedirs('output', exist_ok=True)
 
     # Load all known feeders from file
     load_feeder_info_from_file(feeder_config_file)
@@ -482,14 +484,14 @@ def main(component_position_file, feeder_config_file, outfile=None, mirror_x=Fal
         
         add_calibration_factor(f)
 
-    print('Wrote output to {}\n'.format(outfile))
+    print('\nWrote output to {}\n'.format(outfile))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process pos files from KiCAD to this nice, CharmHigh software')
     parser.add_argument('component_position_file', type=str, help='KiCAD position file in ASCII')
     parser.add_argument('feeder_config_file', type=str, help='Feeder definition file. Supported file formats : csv, ods, fods, xls, xlsx,...')
     
-    parser.add_argument('--output', type=str, help='Output file')
+    parser.add_argument('--output', type=str, help='Output file. If not specified, the position file name is used and the dpv file is created in the output/ folder.')
     
     parser.add_argument('--mirror_x', action="store_true", help='Mirror components along X axis. Useful when processing a file with components mounted on the bottom.')
     
