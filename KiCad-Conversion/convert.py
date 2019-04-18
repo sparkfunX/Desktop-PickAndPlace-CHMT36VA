@@ -280,7 +280,7 @@ def add_feeders(f):
     
     station_number = 0
     for i in range(len(available_feeders)):
-        if available_feeders[i].count_in_design != 0:
+        if available_feeders[i].count_in_design != 0 and available_feeders[i].feeder_ID != "NoMount":
             
             # Mount value explanation:
             # 0b.0000.0ABC
@@ -345,7 +345,7 @@ def add_batch(f):
     # Panel_Array,1,4,0,0,2,2 # Skip board #4 in the array
     # This doesn't quite make sense but skips will most likely NOT be automated (user will input an X'd out board during job run)
 
-def add_components(f):
+def add_components(f, include_newskip):
     # Example output
     # Table,No.,ID,PHead,STNo.,DeltX,DeltY,Angle,Height,Skip,Speed,Explain,Note
     # EComponent,0,1,1,1,16.51,12.68,0,0.5,6,0,C4, 0.1uF
@@ -357,7 +357,12 @@ def add_components(f):
     record_number = 0
     
     for i in range(len(components)):
-        if components[i].feeder_ID in ["NoMount", "NewSkip"]:
+        if components[i].feeder_ID == "NoMount":
+            continue # Do not include NoMount components in the DPV file
+
+        if components[i].feeder_ID == "NewSkip":
+            if not include_newskip:
+                continue # No not include NewSkip components unless explicitly asked
             components[i].place_component = False
             
         working_name = get_working_name(components[i].component_ID)
@@ -382,7 +387,7 @@ def add_components(f):
             record_number, 
             record_ID,
             components[i].head,
-            components[i].feeder_ID,
+            components[i].feeder_ID if components[i].feeder_ID != "NewSkip" else 99,
             float(components[i].x),
             float(components[i].y),
             float(components[i].rotation),
@@ -429,7 +434,7 @@ def add_calibration_factor(f):
     f.write("Table,No.,DeltX,DeltY,AlphaX,AlphaY,BetaX,BetaY,DeltaAngle\n")
     f.write("CalibFator,0,0,0,0,0,1,1,0\n") # Typo is required
 
-def main(component_position_file, feeder_config_file, outfile=None, mirror_x=False, board_width=0):
+def main(component_position_file, feeder_config_file, outfile=None, include_newskip=False, mirror_x=False, board_width=0):
     # basic file verification
     for f in [component_position_file, feeder_config_file]:
         if not os.path.isfile(f):
@@ -467,7 +472,7 @@ def main(component_position_file, feeder_config_file, outfile=None, mirror_x=Fal
         
     print("\nUsed Feeders:")
     for i in range(len(available_feeders)):
-        if available_feeders[i].count_in_design != 0:
+        if available_feeders[i].count_in_design != 0 and available_feeders[i].feeder_ID != "NoMount":
             print(available_feeders[i])
     
     # Output to machine recipe file
@@ -478,7 +483,7 @@ def main(component_position_file, feeder_config_file, outfile=None, mirror_x=Fal
         
         add_batch(f)
         
-        add_components(f)
+        add_components(f, include_newskip)
         
         add_ic_tray(f)
         
@@ -497,10 +502,13 @@ if __name__ == '__main__':
     
     parser.add_argument('--output', type=str, help='Output file. If not specified, the position file name is used and the dpv file is created in the output/ folder.')
     
-    parser.add_argument('--mirror_x', action="store_true", help='Mirror components along X axis. Useful when processing a file with components mounted on the bottom.')
+    parser.add_argument('--include_unassigned_components', action="store_true", help='Include in the output file the components not associated to any feeder. By default these components will be assigned to feeder 99 and not placed but can still be manually assigned to a custom tray.')
     
-    parser.add_argument('--board_width', type=float, help='Board width in mm. Use in conjunction with --mirror-x to make sure the components are aligned to the bottom left side.')
+    mirror_group = parser.add_argument_group("Processing bottom component files")
+    mirror_group.add_argument('--mirror_x', action="store_true", help='Mirror components along X axis. Useful when processing a file with components mounted on the bottom.')
+    
+    mirror_group.add_argument('--board_width', type=float, help='Board width in mm. Use in conjunction with --mirror-x to make sure the components are aligned to the bottom left side.')
 
     args = parser.parse_args()
 
-    main(args.component_position_file, args.feeder_config_file, args.output, args.mirror_x, args.board_width)
+    main(args.component_position_file, args.feeder_config_file, args.output, args.include_unassigned_components, args.mirror_x, args.board_width)
