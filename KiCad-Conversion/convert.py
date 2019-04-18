@@ -110,6 +110,13 @@ def get_working_name(component_ID):
         if feeder_ID == available_feeders[i].feeder_ID:
             return available_feeders[i].device_name
 
+def get_feeder(feeder_ID):
+    # Given the feeder ID, return the associated Feeder object
+    for i in range(len(available_feeders)):
+        if(available_feeders[i].feeder_ID == feeder_ID):
+            return available_feeders[i]
+    return Feeder()
+
 def load_feeder_info_from_net():
 
     print("Pulling feeder data from the net...")
@@ -162,9 +169,9 @@ def load_feeder_info_from_file(path):
                 head=stoi(row[7]),
                 angle_compensation=stoi(row[8]),
                 feed_spacing=stoi(row[9]),
-                place_component=row[10],
-                check_vacuum=row[11],
-                use_vision=row[12],
+                place_component=(row[10] == 'Y'),
+                check_vacuum=(row[11] == 'Y'),
+                use_vision=(row[12] == 'Y'),
                 centroid_correction_x=stof(row[13]),
                 centroid_correction_y=stof(row[14]),
                 aliases=row[15]
@@ -200,27 +207,15 @@ def load_component_info(component_position_file, mirror_x, board_width):
 
                 # Find this component in the available feeders if possible
                 components[componentCount].feeder_ID = locate_feeder_info(componentCount)
-                
-                centroid_correction_x = 0.0
-                centroid_correction_y = 0.0
-                angle_compensation = 0.0
-                head = 0
-                    
-                # Find this feeder
-                if(components[componentCount].feeder_ID != "NoMount" and components[componentCount].feeder_ID != "NewSkip"):
-                    for i in range(len(available_feeders)):
-                        if(available_feeders[i].feeder_ID == components[componentCount].feeder_ID):
-                            centroid_correction_x = available_feeders[i].centroid_correction_x
-                            centroid_correction_y = available_feeders[i].centroid_correction_y
-                            angle_compensation = available_feeders[i].angle_compensation
-                            head = available_feeders[i].head
-                            break
 
+                # Find the associated feeder
+                feeder = get_feeder(components[componentCount].feeder_ID)
+                
                 # Correct tape orientation (mounted 90 degrees from the board)
                 components[componentCount].rotation = components[componentCount].rotation - 90
 
                 # Add an angle compensation to this component (feeder by feeder)
-                components[componentCount].rotation = components[componentCount].rotation + angle_compensation
+                components[componentCount].rotation = components[componentCount].rotation + feeder.angle_compensation
 
                 # Correct rotations to between -180 and 180
                 if(components[componentCount].rotation < -180):
@@ -235,23 +230,26 @@ def load_component_info(component_position_file, mirror_x, board_width):
                 # There are some components that have a centroid point in the wrong place (Qwiic Connector)
                 # If this component has a correction, use it
                 if(components[componentCount].rotation == -180.0):
-                    components[componentCount].x = components[componentCount].x + centroid_correction_y
-                    components[componentCount].y = components[componentCount].y + centroid_correction_x
+                    components[componentCount].x = components[componentCount].x + feeder.centroid_correction_y
+                    components[componentCount].y = components[componentCount].y + feeder.centroid_correction_x
                 elif(components[componentCount].rotation == 180.0): # Duplicate of first
-                    components[componentCount].x = components[componentCount].x + centroid_correction_y
-                    components[componentCount].y = components[componentCount].y + centroid_correction_x
+                    components[componentCount].x = components[componentCount].x + feeder.centroid_correction_y
+                    components[componentCount].y = components[componentCount].y + feeder.centroid_correction_x
                 elif(components[componentCount].rotation == -90.0):
-                    components[componentCount].y = components[componentCount].y + centroid_correction_y
-                    components[componentCount].x = components[componentCount].x + centroid_correction_x
+                    components[componentCount].y = components[componentCount].y + feeder.centroid_correction_y
+                    components[componentCount].x = components[componentCount].x + feeder.centroid_correction_x
                 elif(components[componentCount].rotation == 0.0):
-                    components[componentCount].x = components[componentCount].x - centroid_correction_y
-                    components[componentCount].y = components[componentCount].y - centroid_correction_x
+                    components[componentCount].x = components[componentCount].x - feeder.centroid_correction_y
+                    components[componentCount].y = components[componentCount].y - feeder.centroid_correction_x
                 elif(components[componentCount].rotation == 90.0):
-                    components[componentCount].y = components[componentCount].y - centroid_correction_y
-                    components[componentCount].x = components[componentCount].x - centroid_correction_x
+                    components[componentCount].y = components[componentCount].y - feeder.centroid_correction_y
+                    components[componentCount].x = components[componentCount].x - feeder.centroid_correction_x
 
-                # Assign pick head
-                components[componentCount].head = head
+                # Assign pick head, speed and other feeder parameters
+                components[componentCount].head = feeder.head
+                components[componentCount].place_component = feeder.place_component
+                components[componentCount].check_vacuum = feeder.check_vacuum
+                components[componentCount].use_vision = feeder.use_vision
 
                 # Add any global corrections
                 components[componentCount].y = components[componentCount].y - global_y_adjust
@@ -279,16 +277,11 @@ def add_feeders(f):
     # Output used feeders
     f.write("\n")
     f.write("Table,No.,ID,DeltX,DeltY,FeedRates,Note,Height,Speed,Status,SizeX,SizeY,HeightTake,DelayTake\n")
-    f.write("\n")
     
     station_number = 0
     for i in range(len(available_feeders)):
         if available_feeders[i].count_in_design != 0:
             
-            mount_value = 6
-            if available_feeders[i].place_component == False:
-                mount_value = 7
-                
             # Mount value explanation:
             # 0b.0000.0ABC
             # A = 1 = Use Vision
@@ -298,6 +291,14 @@ def add_feeders(f):
             # C = 1 = Skip placement
             # C = 0 = Place this component
             # Example: 3 = no place, vac, no vis
+            mount_value = 0
+            if available_feeders[i].place_component == False:
+                mount_value += 1
+            if available_feeders[i].check_vacuum == True:
+                mount_value += 2
+            if available_feeders[i].use_vision == True:
+                mount_value += 4
+
 
             f.write('Station,{},{},{:.8g},{:.8g},{},{},{:.8g},{},{},{:.8g},{:.8g},{},{}\n'.format(
                 station_number, 
@@ -331,7 +332,6 @@ def add_batch(f):
     # When there is a batch of boards it looks like this
     f.write("\n")
     f.write("Table,No.,ID,DeltX,DeltY\n")
-    f.write("\n")
     f.write("Panel_Coord,0,1,0,0\n")
 
     # When you define an array you get this:
@@ -351,10 +351,7 @@ def add_components(f):
     # EComponent,0,1,1,1,16.51,12.68,0,0.5,6,0,C4, 0.1uF
 
     f.write("\n")
-    f.write("\n")
-    f.write("\n")
     f.write("Table,No.,ID,PHead,STNo.,DeltX,DeltY,Angle,Height,Skip,Speed,Explain,Note,Delay\n")
-    f.write("\n")
 
     record_ID = 1
     record_number = 0
@@ -362,13 +359,24 @@ def add_components(f):
     for i in range(len(components)):
         if components[i].feeder_ID in ["NoMount", "NewSkip"]:
             components[i].place_component = False
-
             
         working_name = get_working_name(components[i].component_ID)
-        
-        mount_value = 6 # Place record
-        if components[i].place_component == False: 
-            mount_value = 7 #Skip this record
+
+        # 0b.0000.0ABC
+        # A = 1 = Use Vision
+        # A = 0 = No Vision
+        # B = 1 = Use Vacuum Detection
+        # B = 0 = No Vacuum Detection
+        # C = 1 = Skip placement
+        # C = 0 = Place this component
+        # Example: 3 = no place, vac, no vis
+        mount_value = 0
+        if components[i].place_component == False:
+            mount_value += 1
+        if components[i].check_vacuum == True:
+            mount_value += 2
+        if components[i].use_vision == True:
+            mount_value += 4
 
         f.write('EComponent,{},{},{},{},{:.8g},{:.8g},{:.4g},{:.8g},{},{},{},{},{}\n'.format(
             record_number, 
@@ -380,7 +388,7 @@ def add_components(f):
             float(components[i].rotation),
             float(components[i].height),
             mount_value,
-            0,
+            components[i].speed,
             components[i].designator,
             working_name,
             0   # Delay
@@ -393,13 +401,11 @@ def add_ic_tray(f):
     # Add any IC tray info
     f.write("\n")
     f.write("Table,No.,ID,CenterX,CenterY,IntervalX,IntervalY,NumX,NumY,Start\n")
-    f.write("\n")
 
 def add_PCB_calibrate(f):
     # Flags to say what type and if calibration of the board has been done
     f.write("\n")
     f.write("Table,No.,nType,nAlg,nFinished\n")
-    f.write("\n")
     f.write("PcbCalib,0,1,0,0\n")
 
     # nType: 0 = use components as calibration marks, 1 = use marks as calibration marks
@@ -411,7 +417,6 @@ def add_fiducials(f):
     # sense to have user do this manually as it will be pretty specific.
     f.write("\n")
     f.write("Table,No.,ID,offsetX,offsetY,Note\n")
-    f.write("\n")
     f.write("CalibPoint,0,0,20.1,76,Mark1\n")
     f.write("CalibPoint,1,0,53,1.27,Mark2\n")
 
@@ -422,7 +427,6 @@ def add_calibration_factor(f):
     
     f.write("\n")
     f.write("Table,No.,DeltX,DeltY,AlphaX,AlphaY,BetaX,BetaY,DeltaAngle\n")
-    f.write("\n")
     f.write("CalibFator,0,0,0,0,0,1,1,0\n") # Typo is required
 
 def main(component_position_file, feeder_config_file, outfile=None, mirror_x=False, board_width=0):
