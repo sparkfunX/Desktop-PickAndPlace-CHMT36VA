@@ -51,12 +51,6 @@ spreadsheet_key = '1Lmt0ByYfcVgxzi3jb7mmk2JwgMhg5cnIfpZxwTjLkr4' # - this is the
 #         print("")
 
 
-# This jogs all the components in a direction
-# Helpful if we need to adjust the entire job just a smidge
-global_x_adjust = 0.0
-global_y_adjust = 0
-
-
 # Convert string to float, default to 0.0
 def stof(s, default=0.0):
     try:
@@ -182,8 +176,7 @@ def load_feeder_info_from_file(path):
 
     print("Feeder update complete")
 
-def load_component_info(component_position_file, mirror_x, board_width):
-
+def load_component_info(component_position_file, offset, mirror_x, board_width):
     # Get position info from file
     componentCount = 0
     with open(component_position_file) as fp:  
@@ -252,9 +245,9 @@ def load_component_info(component_position_file, mirror_x, board_width):
                 components[componentCount].check_vacuum = feeder.check_vacuum
                 components[componentCount].use_vision = feeder.use_vision
 
-                # Add any global corrections
-                components[componentCount].y = components[componentCount].y - global_y_adjust
-                components[componentCount].x = components[componentCount].x - global_x_adjust
+                # Add any global corrections (offset)
+                components[componentCount].y = components[componentCount].y + offset[1]
+                components[componentCount].x = components[componentCount].x + offset[0]
                 
                 # Add the board width if the file should be mirrored along x
                 if (mirror_x):
@@ -454,7 +447,7 @@ def add_calibration_factor(f):
     f.write("Table,No.,DeltX,DeltY,AlphaX,AlphaY,BetaX,BetaY,DeltaAngle\n")
     f.write("CalibFator,0,0,0,0,0,1,1,0\n") # Typo is required
 
-def main(component_position_file, feeder_config_file, outfile=None, include_newskip=False, mirror_x=False, board_width=0):
+def main(component_position_file, feeder_config_file, outfile=None, include_newskip=False, offset=[0, 0], mirror_x=False, board_width=0):
     # basic file verification
     for f in [component_position_file, feeder_config_file]:
         if not os.path.isfile(f):
@@ -471,7 +464,7 @@ def main(component_position_file, feeder_config_file, outfile=None, include_news
     load_feeder_info_from_file(feeder_config_file)
         
     # Get position info from file
-    load_component_info(component_position_file, mirror_x, board_width)
+    load_component_info(component_position_file, offset, mirror_x, board_width)
 
     # Detect fiducials in the components list
     find_fiducials()
@@ -526,6 +519,8 @@ if __name__ == '__main__':
     parser.add_argument('--output', type=str, help='Output file. If not specified, the position file name is used and the dpv file is created in the output/ folder.')
 
     parser.add_argument('--include_unassigned_components', action="store_true", help='Include in the output file the components not associated to any feeder. By default these components will be assigned to feeder 99 and not placed but can still be manually assigned to a custom tray.')
+
+    parser.add_argument('--offset', nargs=2, type=float, default=[0, 0], metavar=('x', 'y'), help='Global offset added to every component.')
     
     mirror_group = parser.add_argument_group("Processing bottom component files")
     mirror_group.add_argument('--mirror_x', action="store_true", help='Mirror components along X axis. Useful when processing a file with components mounted on the bottom.')
@@ -534,4 +529,4 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    main(args.component_position_file, args.feeder_config_file, args.output, args.include_unassigned_components, args.mirror_x, args.board_width)
+    main(args.component_position_file, args.feeder_config_file, args.output, args.include_unassigned_components, args.offset, args.mirror_x, args.board_width)
