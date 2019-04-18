@@ -29,6 +29,7 @@ from FileOperations import FileOperations
 
 available_feeders = [] # List of available feeders from user's CSV
 components = [] # List of components to be placed from kicad .pos
+fiducials = [] # Detected fiducials inside the components list (components designators beginning with FID*)
 
 # The ID from a 'Anyone with the link can view' shared level spreadsheet
 # This spreadsheet contains configurations for each different reel of components
@@ -263,6 +264,13 @@ def load_component_info(component_position_file, mirror_x, board_width):
             line = fp.readline() # Get the next line
     fp.close()
 
+def find_fiducials():
+    # Detect all components whose designator begins with FID and add it to the fiducials list
+    for c in components:
+        if c.designator.startswith('FID'):
+            fiducials.append(c)
+
+
 def add_header(f, outfile, component_position_file):
     d = datetime.datetime.now()
 
@@ -411,19 +419,31 @@ def add_PCB_calibrate(f):
     # Flags to say what type and if calibration of the board has been done
     f.write("\n")
     f.write("Table,No.,nType,nAlg,nFinished\n")
-    f.write("PcbCalib,0,1,0,0\n")
 
     # nType: 0 = use components as calibration marks, 1 = use marks as calibration marks
     # nFinished: ? 0 = you haven't cal'd a board, 1 = you have cal'd the board
+    calib_type = 0
+    if (len(fiducials) >= 2):
+        calib_type = 1
+        print("\nDetected fiducials:")
+
+    f.write("PcbCalib,0,{},0,0\n".format(calib_type))
+
 
 def add_fiducials(f):
     # Adds the fiducials or mark information about this board or panel
-    # TODO - Should we pull in the marks from the PCB file? It might make better
-    # sense to have user do this manually as it will be pretty specific.
+    # If 2 or more fiducials are detected (designator starts with FID) then they
+    # are automatically added. User can still change these later within the CharmHigh
+    # software
+    # TODO if more than 3 fiducials are detected, select the fiducials to use based on their position (ex: panels)
     f.write("\n")
     f.write("Table,No.,ID,offsetX,offsetY,Note\n")
-    f.write("CalibPoint,0,0,20.1,76,Mark1\n")
-    f.write("CalibPoint,1,0,53,1.27,Mark2\n")
+    
+    if (len(fiducials) >= 2):
+        for i in range(min(len(fiducials), 3)):
+            f.write("CalibPoint,{},0,{},{},Mark{}\n".format(i, fiducials[i].x, fiducials[i].y, i+1))
+            print("{}: \t{}\t{}".format(fiducials[i].designator, fiducials[i].x, fiducials[i].y))
+
 
 def add_calibration_factor(f):
     # Add the calibration factor. This is all the offsets calculated when the
@@ -452,6 +472,9 @@ def main(component_position_file, feeder_config_file, outfile=None, include_news
         
     # Get position info from file
     load_component_info(component_position_file, mirror_x, board_width)
+
+    # Detect fiducials in the components list
+    find_fiducials()
     
     # Mark all the available feeders that have a component in this design
     for i in range(len(components)):
@@ -501,7 +524,7 @@ if __name__ == '__main__':
     parser.add_argument('feeder_config_file', type=str, help='Feeder definition file. Supported file formats : csv, ods, fods, xls, xlsx,...')
     
     parser.add_argument('--output', type=str, help='Output file. If not specified, the position file name is used and the dpv file is created in the output/ folder.')
-    
+
     parser.add_argument('--include_unassigned_components', action="store_true", help='Include in the output file the components not associated to any feeder. By default these components will be assigned to feeder 99 and not placed but can still be manually assigned to a custom tray.')
     
     mirror_group = parser.add_argument_group("Processing bottom component files")
