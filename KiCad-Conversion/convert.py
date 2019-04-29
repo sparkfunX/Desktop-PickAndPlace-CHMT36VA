@@ -457,7 +457,8 @@ def main(component_position_file, feeder_config_file, outfile=None, include_news
 
     if outfile is None:
         basename = os.path.splitext(os.path.basename(component_position_file))[0]
-        outfile = os.path.join('output', f"{datetime.datetime.now():%Y%m%d-%H%M%S}-{basename}.dpv")
+        
+        outfile = os.path.join('output', "{date}-{basename}.dpv".format(date=datetime.datetime.now().strftime("%Y%m%d-%H%M%S"), basename=basename))
         os.makedirs('output', exist_ok=True)
 
     # Load all known feeders from file
