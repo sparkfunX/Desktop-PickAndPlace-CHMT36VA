@@ -20,6 +20,7 @@ import argparse
 # Used for pulling data from g spreadsheet
 import csv 
 import urllib.request, urllib.error, urllib.parse
+from collections import OrderedDict
 
 import pyexcel
 
@@ -447,7 +448,40 @@ def add_calibration_factor(f):
     f.write("Table,No.,DeltX,DeltY,AlphaX,AlphaY,BetaX,BetaY,DeltaAngle\n")
     f.write("CalibFator,0,0,0,0,0,1,1,0\n") # Typo is required
 
-def main(component_position_file, feeder_config_file, outfile=None, include_newskip=False, offset=[0, 0], mirror_x=False, board_width=0):
+
+def generate_bom(output_file):
+    # Generate bom file with feeder_ID info
+    # Useful to order components not on the machine
+    # Ignore NewSkip components
+    print ("Building BOM file...")
+    make_reference = lambda c: (c.footprint, c.value, c.feeder_ID)
+    c_dict = OrderedDict() # "ref": [c, c, ...]
+    
+    # group components by value_package
+    for c in components:
+        ref = make_reference(c)
+        if ref not in c_dict:
+            c_dict[ref] = []
+
+        c_dict[ref].append(c)
+
+
+    # build data
+    out_array = [ [ "Id", "Designator", "Package", "Designator/Value", "Quantity", "AutoMounted"] ]
+    index = 0
+    for c_ref in c_dict:
+        if c_ref[2] == "NoMount":
+            print ("Ignoring {}".format(c_ref))
+            continue
+        comp_list = c_dict[c_ref]
+        out_array.append([index, ",".join([str(c.designator) for c in comp_list]), c_ref[0], c_ref[1], len(comp_list), "True" if c_ref[2] != "NewSkip" else "False"])
+        
+        index += 1
+
+    pyexcel.save_as(array=out_array, dest_file_name=output_file)
+    print ("Wrote output at {}".format(output_file))
+
+def main(component_position_file, feeder_config_file, outfile=None, include_newskip=False, offset=[0, 0], mirror_x=False, board_width=0, bom_output_file=None):
     # basic file verification
     for f in [component_position_file, feeder_config_file]:
         if not os.path.isfile(f):
@@ -512,12 +546,16 @@ def main(component_position_file, feeder_config_file, outfile=None, include_news
 
     print('\nWrote output to {}\n'.format(outfile))
 
+    if bom_output_file is not None:
+        generate_bom(bom_output_file)
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process pos files from KiCAD to this nice, CharmHigh software')
     parser.add_argument('component_position_file', type=str, help='KiCAD position file in ASCII')
     parser.add_argument('feeder_config_file', type=str, help='Feeder definition file. Supported file formats : csv, ods, fods, xls, xlsx,...')
     
     parser.add_argument('--output', type=str, help='Output file. If not specified, the position file name is used and the dpv file is created in the output/ folder.')
+    parser.add_argument('--bom-file', type=str, help='Output BOM file. Generate a BOM with feeder info / NotMounted')
 
     parser.add_argument('--include_unassigned_components', action="store_true", help='Include in the output file the components not associated to any feeder. By default these components will be assigned to feeder 99 and not placed but can still be manually assigned to a custom tray.')
 
@@ -530,4 +568,4 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    main(args.component_position_file, args.feeder_config_file, args.output, args.include_unassigned_components, args.offset, args.mirror_x, args.board_width)
+    main(args.component_position_file, args.feeder_config_file, args.output, args.include_unassigned_components, args.offset, args.mirror_x, args.board_width, args.bom_file)
