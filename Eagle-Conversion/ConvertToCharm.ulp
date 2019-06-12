@@ -70,7 +70,7 @@ int COL_USE_VISION= 15;     string NAME_USE_VISION  = "Use Vision"         ; str
 int MAX_FEEDER    		= 30;
 int FEEDER_NEW    		= -1;
 int FEEDER_DNP    		= 0; //This comes from eagle brd file
-int FEEDER_NO_MOUNT    	= 30; //This comes from spreadsheet
+int FEEDER_NO_MOUNT    	= 999; //This comes from spreadsheet
 
 string configFile  = filesetext(argv[0], ".cfg");
 
