@@ -25,10 +25,12 @@ from collections import OrderedDict
 import pyexcel
 
 from Feeder import Feeder
+from ICTray import ICTray
 from PartPlacement import PartPlacement
 from FileOperations import FileOperations
 
 available_feeders = [] # List of available feeders from user's CSV
+ic_trays = []
 components = [] # List of components to be placed from kicad .pos
 fiducials = [] # Detected fiducials inside the components list (components designators beginning with FID*)
 
@@ -172,6 +174,47 @@ def load_feeder_info_from_file(path):
                 centroid_correction_y=stof(row[14]),
                 aliases=row[15]
                 ))
+        else:
+            break # We don't want to read in values after STOP
+
+    print("Feeder update complete")
+
+
+def load_cuttape_info_from_file(path):
+    # Read from local file
+    print('Fetching CutTape data from: {}'.format(path))
+    for row in pyexcel.get_array(file_name=path, start_row=1): # skip header
+        if(row[0] != "Stop"):
+        # Append to feeder list
+            # Add a new feeder using these values
+            available_feeders.append(Feeder(feeder_ID=row[1], 
+                device_name=row[2], 
+                stack_x_offset=0,
+                stack_y_offset=0, 
+                height=stof(row[7]),
+                speed=stoi(row[8]),
+                head=stoi(row[9]),
+                angle_compensation=stoi(row[10]),
+                feed_spacing=0,#stoi(row[9]),
+                place_component=(row[11] == 'Y'),
+                check_vacuum=(row[12] == 'Y'),
+                use_vision=(row[13] == 'Y'),
+                centroid_correction_x=stof(row[14]),
+                centroid_correction_y=stof(row[15]),
+                aliases=row[16]
+                ))
+
+        # Append to the IC Tray Data
+            ic_trays.append(ICTray(feeder_ID=row[1], 
+                first_IC_center_X=stof(row[3]),
+                first_IC_center_Y=stof(row[4]),
+
+                last_IC_center_X=stof(row[3]) + stoi(row[6]) * (stoi(row[5]) - 1),
+                last_IC_center_Y=stof(row[4]),
+                number_X=stoi(row[5]),
+                number_Y=1,
+                start_IC=0
+            ))
         else:
             break # We don't want to read in values after STOP
 
@@ -409,6 +452,20 @@ def add_ic_tray(f):
     f.write("\n")
     f.write("Table,No.,ID,CenterX,CenterY,IntervalX,IntervalY,NumX,NumY,Start\n")
 
+    for idx, tray in enumerate(ic_trays):
+        f.write("ICTray,{},{},{},{},{},{},{},{},{}\n".format(
+            idx,
+            tray.feeder_ID,
+            tray.first_IC_center_X,
+            tray.first_IC_center_Y,
+            tray.last_IC_center_X,
+            tray.last_IC_center_Y,
+            tray.number_X,
+            tray.number_Y,
+            tray.start_IC
+        ))
+
+
 def add_PCB_calibrate(f):
     # Flags to say what type and if calibration of the board has been done
     f.write("\n")
@@ -481,7 +538,7 @@ def generate_bom(output_file):
     pyexcel.save_as(array=out_array, dest_file_name=output_file)
     print ("Wrote output at {}".format(output_file))
 
-def main(component_position_file, feeder_config_file, outfile=None, include_newskip=False, offset=[0, 0], mirror_x=False, board_width=0, bom_output_file=None):
+def main(component_position_file, feeder_config_file, cuttape_config_file, outfile=None, include_newskip=False, offset=[0, 0], mirror_x=False, board_width=0, bom_output_file=None):
     # basic file verification
     for f in [component_position_file, feeder_config_file]:
         if not os.path.isfile(f):
@@ -497,6 +554,8 @@ def main(component_position_file, feeder_config_file, outfile=None, include_news
 
     # Load all known feeders from file
     load_feeder_info_from_file(feeder_config_file)
+    if cuttape_config_file is not None:
+        load_cuttape_info_from_file(cuttape_config_file)
         
     # Get position info from file
     load_component_info(component_position_file, offset, mirror_x, board_width)
@@ -520,7 +579,6 @@ def main(component_position_file, feeder_config_file, outfile=None, include_news
         print (comp)
         
 
-        
     print("\nUsed Feeders:")
     for i in range(len(available_feeders)):
         if available_feeders[i].count_in_design != 0 and available_feeders[i].feeder_ID != "NoMount":
@@ -554,6 +612,8 @@ if __name__ == '__main__':
     parser.add_argument('component_position_file', type=str, help='KiCAD position file in ASCII')
     parser.add_argument('feeder_config_file', type=str, help='Feeder definition file. Supported file formats : csv, ods, fods, xls, xlsx,...')
     
+    parser.add_argument("--cuttape_config_file", type=str, help='Cut Tape Definition file. Supported file formats : csv, ods, fods, xls, xlsx,...')
+
     parser.add_argument('--output', type=str, help='Output file. If not specified, the position file name is used and the dpv file is created in the output/ folder.')
     parser.add_argument('--bom-file', type=str, help='Output BOM file. Generate a BOM with feeder info / NotMounted')
 
@@ -568,4 +628,4 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    main(args.component_position_file, args.feeder_config_file, args.output, args.include_unassigned_components, args.offset, args.mirror_x, args.board_width, args.bom_file)
+    main(args.component_position_file, args.feeder_config_file, args.cuttape_config_file, args.output, args.include_unassigned_components, args.offset, args.mirror_x, args.board_width, args.bom_file)
