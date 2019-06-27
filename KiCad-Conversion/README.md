@@ -31,6 +31,20 @@ You can find a sample file in this repository : `feeders_data_sample.fods`. This
 
 You can get detailed usage information here : https://www.sparkfun.com/sparkx/blog/2591
 
+### Cut Tape Data
+Passed via the argument --cuttape_config_file
+
+The file describes the cut tapes installed on the PCB area of the machine.
+Keeping this data in a separate file allows to have multiple setups for multiple productions, 
+(when the feeders are loaded with consistent and regular components)
+
+Using a rig, set the X/Y first points of the cut tapes by moving to it with the camera.
+The start points should move too much, if you use a dedicate rig.
+
+You can find a sample file in this repository : `cut_tape_sample.fods`.
+
+The names (Components in the file) are, like in the feeders spreadsheet, a concatenation of the partnumber and footprint.
+
 ### Basic usage
 Let's have a look at the most basic usage : a single PCB with components on the top side only. 
 
