@@ -184,6 +184,7 @@ def load_cuttape_info_from_file(path):
     # Read from local file
     print('Fetching CutTape data from: {}'.format(path))
     for row in pyexcel.get_array(file_name=path, start_row=1): # skip header
+        # print("ID {}, {} columns".format(row[1], len(row)))
         if(row[0] != "Stop"):
         # Append to feeder list
             # Add a new feeder using these values
@@ -201,7 +202,7 @@ def load_cuttape_info_from_file(path):
                 use_vision=(row[13] == 'Y'),
                 centroid_correction_x=stof(row[14]),
                 centroid_correction_y=stof(row[15]),
-                aliases=row[16]
+                aliases=row[16] if len(row) > 16 else ""
                 ))
 
         # Append to the IC Tray Data
