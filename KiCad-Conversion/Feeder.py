@@ -28,7 +28,7 @@ class Feeder():
         ):
 
         self.feeder_ID = feeder_ID
-        self.device_name = device_name
+        self.device_name = device_name.strip()
         self.stack_x_offset = stack_x_offset
         self.stack_y_offset = stack_y_offset
         self.height = height
@@ -41,7 +41,7 @@ class Feeder():
         self.place_component = place_component
         self.check_vacuum = check_vacuum
         self.use_vision = use_vision
-        self.aliases = aliases
+        self.aliases = aliases.strip()
         self.centroid_correction_x = centroid_correction_x
         self.centroid_correction_y = centroid_correction_y
 
