@@ -25,6 +25,10 @@ int       flipHorizontal      = 1;
 string 	  defaultFileLocation = "";
 int       useAutomaticOffset  = 1;
 int       useFiducials        = 0;
+int       numBoardsinPanelX   = 1;
+int       numBoardsinPanelY   = 1;
+int       absPanelOffsetX     = 0;
+int       absPanelOffsetY     = 0;
 
 string pnpName[];
 string pnpDesignator[];
@@ -79,6 +83,10 @@ void configWrite(){
     printf("%s\n",   trayListUrl);
     printf("%s\n",   trayCSV);
     printf("%d\n",   useFiducials);
+    printf("%d\n",   numBoardsinPanelX);
+    printf("%d\n",   numBoardsinPanelY);
+    printf("%d\n",   absPanelOffsetX);
+    printf("%d\n",   absPanelOffsetY);
   }
 }
 
@@ -105,6 +113,10 @@ void configRead() {
       trayListUrl         = data[12];
       trayCSV             = data[13];
       useFiducials        = strtol(data[14]);
+      numBoardsinPanelX   = strtol(data[15]);
+      numBoardsinPanelY   = strtol(data[16]);
+      absPanelOffsetX     = strtol(data[17]);
+      absPanelOffsetY     = strtol(data[18]);
     }
   }
 }
@@ -174,15 +186,14 @@ int transformCoordinateY(int y, int pos){
 /**
  * Adds the opening header information to the dpv file
  */
-void addHeader()
-{
+void addHeader() {
   //File header
   printf("separated\n");
   printf("FILE,SparkFun_Conversion_Script.dpv\n");
   printf("PCBFILE,SparkFun_Conversion_Script\n");
   printf("DATE,2017/11/27\n"); //Todo pull in current date/time
   printf("TIME,14:42:01\n");
-  printf("PANELYPE,0\n"); //Typo is correct. Type 0 = batch of PCBs. Type 1 = panel of PCBs. See addBatch() for info.
+  printf("PANELYPE,1\n"); //Typo is correct. Type 0 = batch of PCBs. Type 1 = panel of PCBs. See addBatch() for info.
   printf("\n");
 }
 
@@ -191,8 +202,7 @@ void addHeader()
  * Figures out the feeders needed and creates a material stack
  * @param   position    Top (0) or bottom (1) layer placement
  */
-void addFeeders(int position)
-{
+void addFeeders(int position) {
   //Create Material Stack
   printf("\n");
   printf("Table,No.,ID,DeltX,DeltY,FeedRates,Note,Height,Speed,Status,SizeX,SizeY\n");
@@ -259,8 +269,7 @@ void addFeeders(int position)
  * Add panel definition
  * NOTE: Currently not implemented
  */
-void addBatch()
-{
+void addBatch() {
   //Batch is where the user takes multiple copies of the same design and mounts them
   //into the machine at the same time.
   //Doing an array is where you have one PCB but X number of copies panelized into an array
@@ -274,8 +283,9 @@ void addBatch()
   printf("\n");
 
   //When there is a batch of boards it looks like this
-  printf("Table,No.,ID,DeltX,DeltY\n");
-  printf("Panel_Coord,0,1,0,0\n");
+  printf("Table,No.,ID,IntervalX,IntervalY,NumX,NumY\n");
+  //printf("Panel_Coord,0,1,0,0\n");
+  printf("Panel_Array,0,1,%d,%d,%d,%d\n", absPanelOffsetX, absPanelOffsetY, numBoardsinPanelX, numBoardsinPanelY);
 
   //When you define an array you get this:
   //Table,No.,ID,IntervalX,IntervalY,NumX,NumY
@@ -287,15 +297,13 @@ void addBatch()
   //When you add a skip, you get another
   //Panel_Array,1,4,0,0,2,2 //Skip board #4 in the array
   //This doesn't quite make sense but skips will most likely NOT be automated (user will input an X'd out board during job run)
-
 }
 
 /**
  * Add all the components to the output file
  * @param   position      Top (0) or bottom (1) layer placement
  */
-void addComponents(int position)
-{
+void addComponents(int position){
   printf("\n");
   printf("Table,No.,ID,PHead,STNo.,DeltX,DeltY,Angle,Height,Skip,Speed,Explain,Note\n");
 
@@ -366,8 +374,7 @@ void addComponents(int position)
  * Add any IC tray info
  * NOTE: Currently not implemented
  */
-void addICTray()
-{
+void addICTray() {
   //Material Stacks from 88 to 99 are for IC trays
   //ICTray,0,88,209,55.5,353,55.5,7,1,0
   printf("\n");
@@ -398,15 +405,13 @@ void addICTray()
         i, trayid, x1, y1, x2, y2, getTrayParameterByLine(i, COL2_XCOUNT), getTrayParameterByLine(i, COL2_YCOUNT)
      );
     }
-  }
-  
+  } 
 }
 
 /**
  * Add fiducial info
  */
-void addFiducials(int position)
-{
+void addFiducials(int position) {
   if(useFiducials){
     //PCB calibration is done with marks instead of parts
     printf("\n");
@@ -454,8 +459,7 @@ void addFiducials(int position)
 /**
  * Add calibration factor
  */
-void addCalibrationFactor()
-{
+void addCalibrationFactor() {
   //Add the calibration factor. This is all the offsets calculated when the
   //PCB is calibrated. We don't have to set anything here because the program
   //will calculate things after user calibrates the PCB.
@@ -562,8 +566,7 @@ void downloadTrayData(){
  * param  x   X coordinate of the current element
  * param  Y   Y coordinate of the current element
  */
-void setCoordinates(int x, int y)
-{
+void setCoordinates(int x, int y) {
   if(!initialized) {
     maxX = x;
     minX = x;
@@ -708,8 +711,7 @@ void loadBoardInformation() {
 /**
  * GUI Data
  */
-int showListOfDevices()
-{
+int showListOfDevices() {
   int selected = 0;
   int sorted = 0;
   int sortedFeedersUsed = 1;
@@ -723,7 +725,7 @@ int showListOfDevices()
   widthY = u2mm(maxY);
 
   //Re-display dialog as long as we don't abort
-  while(1){
+  while(1) {
 
     //Generate / refresh the part list
     string partlist[];
@@ -832,6 +834,83 @@ int showListOfDevices()
                 }
                 dlgGroup("Fiducial marks"){
                   dlgCheckBox("Use fiducial marks for pcb calibration", useFiducials);
+                }
+                dlgGroup("Panel options"){
+                  int tab=0;
+                  int offsetPanelX = absPanelOffsetX - widthX;
+                  int offsetPanelY = absPanelOffsetY - widthY;
+                  string offX = itoa(absPanelOffsetX)+" mm";
+                  string offY = itoa(absPanelOffsetY)+" mm";
+                  string pWithX = itoa(absPanelOffsetX*numBoardsinPanelX)+" mm";
+                  string pWithY = itoa(absPanelOffsetY*numBoardsinPanelY)+" mm";
+                  
+                  dlgVBoxLayout {
+                    dlgHBoxLayout {
+                      dlgLabel("Repeat X:");
+                      dlgIntEdit(numBoardsinPanelX,1,999999);
+                    }
+                    dlgHBoxLayout {
+                      dlgLabel("Repeat Y:");
+                      dlgIntEdit(numBoardsinPanelY,1,999999);
+                    }
+                    dlgSpacing(15);
+                    dlgHBoxLayout {
+                      dlgRadioButton("spacing between designs",tab) {
+                        offsetPanelX = absPanelOffsetX - widthX;
+                        offsetPanelY = absPanelOffsetY - widthY;
+                      };
+                      dlgRadioButton("spacing between origins",tab) {
+                        offsetPanelX = absPanelOffsetX;
+                        offsetPanelY = absPanelOffsetY;
+                      };
+                    }
+                    dlgHBoxLayout {
+                      dlgLabel("Spacing X:");
+                      dlgIntEdit(offsetPanelX,-999999,999999);
+                      dlgLabel("mm");
+                    }
+                    dlgHBoxLayout {
+                      dlgLabel("Spacing Y:");
+                      dlgIntEdit(offsetPanelY,-999999,999999);
+                      dlgLabel("mm");
+                    }
+                    dlgSpacing(15);
+                    dlgHBoxLayout {
+                      dlgLabel("Origin spacing X:");
+                      dlgStretch(1);
+                      dlgLabel(offX,1);
+                    }
+                    dlgHBoxLayout {
+                      dlgLabel("Origin spacing Y:");
+                      dlgStretch(1);
+                      dlgLabel(offY,1);
+                    }
+                    dlgHBoxLayout {
+                      dlgLabel("Panel width:");
+                      dlgStretch(1);
+                      dlgLabel(pWithX,1);
+                    }
+                    dlgHBoxLayout {
+                      dlgLabel("Panel height:");
+                      dlgStretch(1);
+                      dlgLabel(pWithY,1);
+                    }
+                    dlgPushButton("Update") {
+                      if(tab) {
+                        absPanelOffsetX = offsetPanelX;
+                        absPanelOffsetY = offsetPanelY;
+                      }
+                      else{
+                        absPanelOffsetX = offsetPanelX + widthX;
+                        absPanelOffsetY = offsetPanelY + widthY;
+                      }
+                      offX = itoa(absPanelOffsetX)+" mm";
+                      offY = itoa(absPanelOffsetY)+" mm";
+
+                      pWithX = itoa(absPanelOffsetX*numBoardsinPanelX)+" mm";
+                      pWithY = itoa(absPanelOffsetY*numBoardsinPanelY)+" mm";
+                    }
+                  }
                 }
                 dlgPushButton("Apply settings") {
                   dlgAccept();
