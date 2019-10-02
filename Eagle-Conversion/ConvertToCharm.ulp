@@ -526,6 +526,12 @@ void downloadFeederData(){
   //Process feeder data to be TSV instead of CSV and split headline and data
   availableFeederHeadline = stringReplace(availableFeederList[0], ",", "\t");
   for(int i = 1; i < numberOfFeeders; i++){
+    if(strstr(availableFeederList[i],"Stop")!=-1) {
+      numberOfFeeders=i;
+      availableFeederList[numberOfFeeders] = "";
+      break;
+    }
+
     availableFeederList[i-1] = stringReplace(availableFeederList[i], ",", " \t");
   }
   availableFeederList[numberOfFeeders-1] = "";
@@ -557,7 +563,13 @@ void downloadTrayData(){
 
   //Process feeder data to be TSV instead of CSV and split headline and data
   availableTrayHeadline = stringReplace(availableTrayList[0], ",", "\t");
-  for(int i = 1; i < numberOfFeeders; i++){
+  for(int i = 1; i < numberOfTrays; i++){
+    if(strstr(availableTrayList[i],"Stop")!=-1) {
+      numberOfTrays=i;
+      availableTrayList[numberOfTrays] = "";
+      break;
+    }
+    
     availableTrayList[i-1] = stringReplace(availableTrayList[i], ",", " \t");
   }
   availableTrayList[numberOfTrays-1] = "";
