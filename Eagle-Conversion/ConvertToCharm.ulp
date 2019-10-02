@@ -29,6 +29,7 @@ int       numBoardsinPanelX   = 1;
 int       numBoardsinPanelY   = 1;
 int       absPanelOffsetX     = 0;
 int       absPanelOffsetY     = 0;
+int       panelice            = 0;
 
 string pnpName[];
 string pnpDesignator[];
@@ -87,6 +88,7 @@ void configWrite(){
     printf("%d\n",   numBoardsinPanelY);
     printf("%d\n",   absPanelOffsetX);
     printf("%d\n",   absPanelOffsetY);
+    printf("%d\n",   panelice);
   }
 }
 
@@ -117,6 +119,7 @@ void configRead() {
       numBoardsinPanelY   = strtol(data[16]);
       absPanelOffsetX     = strtol(data[17]);
       absPanelOffsetY     = strtol(data[18]);
+      panelice            = strtol(data[19]);
     }
   }
 }
@@ -272,7 +275,7 @@ void addFeeders(int position) {
 void addBatch() {
   //Batch is where the user takes multiple copies of the same design and mounts them
   //into the machine at the same time.
-  //Doing an array is where you have one PCB but X number of copies panelized into an array
+  //Doing an array is where you have one PCB but X number of copies paneliced into an array
 
   //If you are doing a batch then the header is
   //PANELYPE,0
@@ -285,7 +288,13 @@ void addBatch() {
   //When there is a batch of boards it looks like this
   printf("Table,No.,ID,IntervalX,IntervalY,NumX,NumY\n");
   //printf("Panel_Coord,0,1,0,0\n");
-  printf("Panel_Array,0,1,%d,%d,%d,%d\n", absPanelOffsetX, absPanelOffsetY, numBoardsinPanelX, numBoardsinPanelY);
+  if(panelice){
+    printf("Panel_Array,0,1,%d,%d,%d,%d\n", absPanelOffsetX, absPanelOffsetY, numBoardsinPanelX, numBoardsinPanelY);
+  }
+  else {
+    printf("Panel_Array,0,1,0,0,1,1\n");
+  }
+  
 
   //When you define an array you get this:
   //Table,No.,ID,IntervalX,IntervalY,NumX,NumY
@@ -711,6 +720,101 @@ void loadBoardInformation() {
 /**
  * GUI Data
  */
+void showPanelOptions(void) {
+  dlgDialog("Panel options") {
+    int tab=0;
+    int offsetPanelX = absPanelOffsetX - widthX;
+    int offsetPanelY = absPanelOffsetY - widthY;
+    string offX = itoa(absPanelOffsetX)+" mm";
+    string offY = itoa(absPanelOffsetY)+" mm";
+    string pWithX = itoa(absPanelOffsetX*numBoardsinPanelX)+" mm";
+    string pWithY = itoa(absPanelOffsetY*numBoardsinPanelY)+" mm";
+    dlgVBoxLayout {
+      dlgHBoxLayout {
+        dlgLabel("<img src=\"helpGrafic.png\">");
+        dlgVBoxLayout {
+          dlgGroup("") {
+            dlgHBoxLayout {
+              dlgLabel("Repeat X:");
+              dlgIntEdit(numBoardsinPanelX,1,999999);
+            }
+            dlgHBoxLayout {
+              dlgLabel("Repeat Y:");
+              dlgIntEdit(numBoardsinPanelY,1,999999);
+            }
+            dlgSpacing(15);
+            dlgHBoxLayout {
+              dlgRadioButton("spacing between designs",tab);
+              dlgRadioButton("spacing between origins",tab);
+            }
+            dlgHBoxLayout {
+              dlgLabel("Spacing X:");
+              dlgIntEdit(offsetPanelX,-999999,999999);
+              dlgLabel("mm");
+            }
+            dlgHBoxLayout {
+              dlgLabel("Spacing Y:");
+              dlgIntEdit(offsetPanelY,-999999,999999);
+              dlgLabel("mm");
+            }
+            dlgSpacing(15);
+            dlgHBoxLayout {
+              dlgLabel("Origin spacing X:");
+              dlgStretch(1);
+              dlgLabel(offX,1);
+            }
+            dlgHBoxLayout {
+              dlgLabel("Origin spacing Y:");
+              dlgStretch(1);
+              dlgLabel(offY,1);
+            }
+            dlgHBoxLayout {
+              dlgLabel("Panel width:");
+              dlgStretch(1);
+              dlgLabel(pWithX,1);
+            }
+            dlgHBoxLayout {
+              dlgLabel("Panel height:");
+              dlgStretch(1);
+              dlgLabel(pWithY,1);
+            }
+            dlgPushButton("Update") {
+              if(tab) {
+                absPanelOffsetX = offsetPanelX;
+                absPanelOffsetY = offsetPanelY;
+              }
+              else{
+                absPanelOffsetX = offsetPanelX + widthX;
+                absPanelOffsetY = offsetPanelY + widthY;
+              }
+              offX = itoa(absPanelOffsetX)+" mm";
+              offY = itoa(absPanelOffsetY)+" mm";
+
+              pWithX = itoa(absPanelOffsetX*numBoardsinPanelX)+" mm";
+              pWithY = itoa(absPanelOffsetY*numBoardsinPanelY)+" mm";
+            }
+          }
+          dlgStretch(1);
+          dlgHBoxLayout{
+            dlgStretch(1);
+            dlgPushButton("OK") {
+              if(tab) {
+                absPanelOffsetX = offsetPanelX;
+                absPanelOffsetY = offsetPanelY;
+              }
+              else{
+                absPanelOffsetX = offsetPanelX + widthX;
+                absPanelOffsetY = offsetPanelY + widthY;
+              }
+              dlgAccept();
+            }
+          }
+        }
+      }
+    }
+  };
+}
+
 int showListOfDevices() {
   int selected = 0;
   int sorted = 0;
@@ -818,15 +922,15 @@ int showListOfDevices() {
               dlgVBoxLayout {
                 dlgGroup("Offset") {
                   dlgRadioButton("Use manual origin and size",     useAutomaticOffset); 
-                  dlgHBoxLayout{ dlgLabel("Origin X:\t");             dlgRealEdit(originX, -10000, 10000); dlgLabel("mm");}  
-                  dlgHBoxLayout{ dlgLabel("Origin Y:\t");             dlgRealEdit(originY, -10000, 10000); dlgLabel("mm");}  
-                  dlgHBoxLayout{ dlgLabel("Width:   \t");             dlgRealEdit(widthX, -10000, 10000);  dlgLabel("mm");}  
-                  dlgHBoxLayout{ dlgLabel("Height:  \t");             dlgRealEdit(widthY, -10000, 10000);  dlgLabel("mm");}  
+                  dlgHBoxLayout{ dlgLabel("Origin X:\t");                   dlgRealEdit(originX, -10000, 10000); dlgLabel("mm");}  
+                  dlgHBoxLayout{ dlgLabel("Origin Y:\t");                   dlgRealEdit(originY, -10000, 10000); dlgLabel("mm");}  
+                  dlgHBoxLayout{ dlgLabel("Width:   \t");                   dlgRealEdit(widthX, -10000, 10000);  dlgLabel("mm");}  
+                  dlgHBoxLayout{ dlgLabel("Height:  \t");                   dlgRealEdit(widthY, -10000, 10000);  dlgLabel("mm");}  
                   dlgRadioButton("Use automatic offset",  useAutomaticOffset);          
-                  dlgHBoxLayout{ dlgLabel("Origin X:\t\t");           dlgLabel(itoa(u2mm(-minX)) + "mm"); }
-                  dlgHBoxLayout{ dlgLabel("Origin Y:\t\t");           dlgLabel(itoa(u2mm(-minY)) + "mm"); }
-                  dlgHBoxLayout{ dlgLabel("Width X:\t\t");            dlgLabel(itoa(u2mm(maxX-minX)) + "mm"); }
-                  dlgHBoxLayout{ dlgLabel("Height Y:\t\t");           dlgLabel(itoa(u2mm(maxY-minY)) + "mm"); }
+                  dlgHBoxLayout{ dlgLabel("Origin X:\t\t"); dlgStretch(1);  dlgLabel(itoa(u2mm(-minX)) + " mm"); }
+                  dlgHBoxLayout{ dlgLabel("Origin Y:\t\t"); dlgStretch(1);  dlgLabel(itoa(u2mm(-minY)) + " mm"); }
+                  dlgHBoxLayout{ dlgLabel("Width X:\t\t");  dlgStretch(1);  dlgLabel(itoa(u2mm(maxX-minX)) + " mm"); }
+                  dlgHBoxLayout{ dlgLabel("Height Y:\t\t"); dlgStretch(1);  dlgLabel(itoa(u2mm(maxY-minY)) + " mm"); }
                 }
                 dlgGroup("Additional Offset") {
                   dlgHBoxLayout{ dlgLabel("Offset X:\t");         dlgRealEdit(offsetX, -10000, 10000);     dlgLabel("mm");} 
@@ -836,80 +940,10 @@ int showListOfDevices() {
                   dlgCheckBox("Use fiducial marks for pcb calibration", useFiducials);
                 }
                 dlgGroup("Panel options"){
-                  int tab=0;
-                  int offsetPanelX = absPanelOffsetX - widthX;
-                  int offsetPanelY = absPanelOffsetY - widthY;
-                  string offX = itoa(absPanelOffsetX)+" mm";
-                  string offY = itoa(absPanelOffsetY)+" mm";
-                  string pWithX = itoa(absPanelOffsetX*numBoardsinPanelX)+" mm";
-                  string pWithY = itoa(absPanelOffsetY*numBoardsinPanelY)+" mm";
-                  
-                  dlgVBoxLayout {
-                    dlgHBoxLayout {
-                      dlgLabel("Repeat X:");
-                      dlgIntEdit(numBoardsinPanelX,1,999999);
-                    }
-                    dlgHBoxLayout {
-                      dlgLabel("Repeat Y:");
-                      dlgIntEdit(numBoardsinPanelY,1,999999);
-                    }
-                    dlgSpacing(15);
-                    dlgHBoxLayout {
-                      dlgRadioButton("spacing between designs",tab) {
-                        offsetPanelX = absPanelOffsetX - widthX;
-                        offsetPanelY = absPanelOffsetY - widthY;
-                      };
-                      dlgRadioButton("spacing between origins",tab) {
-                        offsetPanelX = absPanelOffsetX;
-                        offsetPanelY = absPanelOffsetY;
-                      };
-                    }
-                    dlgHBoxLayout {
-                      dlgLabel("Spacing X:");
-                      dlgIntEdit(offsetPanelX,-999999,999999);
-                      dlgLabel("mm");
-                    }
-                    dlgHBoxLayout {
-                      dlgLabel("Spacing Y:");
-                      dlgIntEdit(offsetPanelY,-999999,999999);
-                      dlgLabel("mm");
-                    }
-                    dlgSpacing(15);
-                    dlgHBoxLayout {
-                      dlgLabel("Origin spacing X:");
-                      dlgStretch(1);
-                      dlgLabel(offX,1);
-                    }
-                    dlgHBoxLayout {
-                      dlgLabel("Origin spacing Y:");
-                      dlgStretch(1);
-                      dlgLabel(offY,1);
-                    }
-                    dlgHBoxLayout {
-                      dlgLabel("Panel width:");
-                      dlgStretch(1);
-                      dlgLabel(pWithX,1);
-                    }
-                    dlgHBoxLayout {
-                      dlgLabel("Panel height:");
-                      dlgStretch(1);
-                      dlgLabel(pWithY,1);
-                    }
-                    dlgPushButton("Update") {
-                      if(tab) {
-                        absPanelOffsetX = offsetPanelX;
-                        absPanelOffsetY = offsetPanelY;
-                      }
-                      else{
-                        absPanelOffsetX = offsetPanelX + widthX;
-                        absPanelOffsetY = offsetPanelY + widthY;
-                      }
-                      offX = itoa(absPanelOffsetX)+" mm";
-                      offY = itoa(absPanelOffsetY)+" mm";
-
-                      pWithX = itoa(absPanelOffsetX*numBoardsinPanelX)+" mm";
-                      pWithY = itoa(absPanelOffsetY*numBoardsinPanelY)+" mm";
-                    }
+                  dlgHBoxLayout {
+                    dlgCheckBox("Panelice",panelice);
+                    dlgStretch(1);
+                    dlgPushButton("Define") showPanelOptions();
                   }
                 }
                 dlgPushButton("Apply settings") {
