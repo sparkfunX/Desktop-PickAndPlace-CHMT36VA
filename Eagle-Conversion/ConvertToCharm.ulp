@@ -569,7 +569,7 @@ void downloadTrayData(){
       availableTrayList[numberOfTrays] = "";
       break;
     }
-    
+
     availableTrayList[i-1] = stringReplace(availableTrayList[i], ",", " \t");
   }
   availableTrayList[numberOfTrays-1] = "";
@@ -1051,8 +1051,8 @@ int showListOfDevices() {
 }
 
 if (!board) {
-    dlgMessageBox("\n    Start this ULP in a Board    \n");
-    exit (0);  
+    //dlgMessageBox("\n    Start this ULP in a Board    \n");
+    exit ("EDIT .brd; RUN "+argv[0]);  
 } else {
 
     showListOfDevices();
