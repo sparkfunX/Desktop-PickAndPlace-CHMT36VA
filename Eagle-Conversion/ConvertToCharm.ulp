@@ -64,6 +64,8 @@ int FEEDER_NO_MOUNT    	= 30; //This comes from spreadsheet
 
 string configFile  = filesetext(argv[0], ".cfg");
 
+int usedFiducial[];
+
 /**
  * Write the ULP configuration to the config file
  */
@@ -433,7 +435,7 @@ void addFiducials(int position) {
     int componentNumber = 0; 
     int componentID = 1; 
     for(int i = 0; i < pnpCount; i++){
-      if(pnpPos[i] == position && pnpFeeder[i] == FEEDER_FIDUCIAL){
+      if(pnpPos[i] == position && pnpFeeder[i] == FEEDER_FIDUCIAL && usedFiducial[i]){
 
 
         printf("CalibPoint,%d,%d,%.2f,%.2f,%s\n",
@@ -581,7 +583,6 @@ void downloadTrayData(){
   }
 }
 
-
 /**
  * Process the coordinates to determine min/max of the outline
  * param  x   X coordinate of the current element
@@ -629,6 +630,7 @@ void loadBoardInformation() {
     B.elements(E) {
       int isSmd = 0;
       int isBottom = 0;
+      int isTop = 0;
 
       //Determine centroid offset of the element
       int xmax = -2147483648,
@@ -638,28 +640,25 @@ void loadBoardInformation() {
       E.package.contacts(C) {
         if (C.smd && C.smd.layer == 1) {
           isSmd = 1;
+          isTop = 1;
 
 	        //Find centroid of this component
-          if (C.x > xmax) xmax = C.x;
-          if (C.y > ymax) ymax = C.y;
-          if (C.x < xmin) xmin = C.x;
-          if (C.y < ymin) ymin = C.y;
+          if (C.x != xmax) xmax = C.x;
+          if (C.y != ymax) ymax = C.y;
         }
         if (C.smd && C.smd.layer == 16) {
           isSmd = 1;
           isBottom = 1;
 
-          if (C.x > xmax) xmax = C.x;
-          if (C.y > ymax) ymax = C.y;
-          if (C.x < xmin) xmin = C.x;
-          if (C.y < ymin) ymin = C.y;
+          if (C.x != xmax) xmax = C.x;
+          if (C.y != ymax) ymax = C.y;
         }
       }
 
       //If the part is SMD, process it
       if (isSmd) {
-		real xCenter = (xmin + xmax) / 2;
-   		real yCenter = (ymin + ymax) / 2;
+		    real xCenter = (xmin + xmax) / 2;
+        real yCenter = (ymin + ymax) / 2;
 		
         pnpName[pnpCount]       = E.value + '-' + E.package.name;
         pnpDesignator[pnpCount] = E.name;
@@ -685,7 +684,100 @@ void loadBoardInformation() {
           pnpStatsPartsOk++;
         }
 
+        //searching for the 4 most extreem fiducials on top and bottom
+        if(pnpFeeder[pnpCount] == FEEDER_FIDUCIAL){
+          if(pnpPos[pnpCount]) {
+            if(pnpX[pnpCount]+pnpY[pnpCount]>pnpX[usedFiducial[0]]+pnpY[usedFiducial[0]]){
+              usedFiducial[0]=pnpCount;
+            }
+            if(pnpX[pnpCount]-pnpY[pnpCount]>pnpX[usedFiducial[1]]-pnpY[usedFiducial[1]]){
+              usedFiducial[1]=pnpCount;
+            }
+            if(pnpX[pnpCount]-pnpY[pnpCount]<pnpX[usedFiducial[2]]-pnpY[usedFiducial[2]]){
+              usedFiducial[2]=pnpCount;
+            }
+            if(pnpX[pnpCount]+pnpY[pnpCount]<pnpX[usedFiducial[3]]+pnpY[usedFiducial[3]]){
+              usedFiducial[3]=pnpCount;
+            }
+          }
+          else {
+            if(pnpX[pnpCount]+pnpY[pnpCount]>pnpX[usedFiducial[4]]+pnpY[usedFiducial[4]]){
+              usedFiducial[4]=pnpCount;
+            }
+            if(pnpX[pnpCount]-pnpY[pnpCount]>pnpX[usedFiducial[5]]-pnpY[usedFiducial[5]]){
+              usedFiducial[5]=pnpCount;
+            }
+            if(pnpX[pnpCount]-pnpY[pnpCount]<pnpX[usedFiducial[6]]-pnpY[usedFiducial[6]]){
+              usedFiducial[6]=pnpCount;
+            }
+            if(pnpX[pnpCount]+pnpY[pnpCount]<pnpX[usedFiducial[7]]+pnpY[usedFiducial[7]]){
+              usedFiducial[7]=pnpCount;
+            }
+          }
+        }
         pnpCount++;
+
+        if(isBottom&&isTop){
+          real xCenter = (xmin + xmax) / 2;
+          real yCenter = (ymin + ymax) / 2;
+      
+          pnpName[pnpCount]       = E.value + '-' + E.package.name;
+          pnpDesignator[pnpCount] = E.name;
+          pnpX[pnpCount]          = xCenter;
+          pnpY[pnpCount]          = yCenter;
+          pnpAngle[pnpCount]      = E.angle;
+          pnpPos[pnpCount]        = !isBottom;
+
+          //If we want to populate the device
+          if(E.populate && E.attribute["POPULATE"] != "DNP"){
+            pnpFeeder[pnpCount]   = getFeederId(pnpName[pnpCount]);
+          } else {
+            pnpFeeder[pnpCount]   = FEEDER_DNP;
+          }
+
+          //Update stats
+          pnpStatsPartsTotal++;
+          if(pnpFeeder[pnpCount] == FEEDER_NEW){
+            pnpStatsPartsNew++;
+          } else if(pnpFeeder[pnpCount] == FEEDER_DNP){
+            pnpStatsPartsDnp++;
+          } else {
+            pnpStatsPartsOk++;
+          }
+
+          //searching for the 4 most extreem fiducials on top and bottom
+          if(pnpFeeder[pnpCount] == FEEDER_FIDUCIAL){
+            if(pnpPos[pnpCount]) {
+              if(pnpX[pnpCount]+pnpY[pnpCount]>pnpX[usedFiducial[0]]+pnpY[usedFiducial[0]]){
+                usedFiducial[0]=pnpCount;
+              }
+              if(pnpX[pnpCount]-pnpY[pnpCount]>pnpX[usedFiducial[1]]-pnpY[usedFiducial[1]]){
+                usedFiducial[1]=pnpCount;
+              }
+              if(pnpX[pnpCount]-pnpY[pnpCount]<pnpX[usedFiducial[2]]-pnpY[usedFiducial[2]]){
+                usedFiducial[2]=pnpCount;
+              }
+              if(pnpX[pnpCount]+pnpY[pnpCount]<pnpX[usedFiducial[3]]+pnpY[usedFiducial[3]]){
+                usedFiducial[3]=pnpCount;
+              }
+            }
+            else {
+              if(pnpX[pnpCount]+pnpY[pnpCount]>pnpX[usedFiducial[4]]+pnpY[usedFiducial[4]]){
+                usedFiducial[4]=pnpCount;
+              }
+              if(pnpX[pnpCount]-pnpY[pnpCount]>pnpX[usedFiducial[5]]-pnpY[usedFiducial[5]]){
+                usedFiducial[5]=pnpCount;
+              }
+              if(pnpX[pnpCount]-pnpY[pnpCount]<pnpX[usedFiducial[6]]-pnpY[usedFiducial[6]]){
+                usedFiducial[6]=pnpCount;
+              }
+              if(pnpX[pnpCount]+pnpY[pnpCount]<pnpX[usedFiducial[7]]+pnpY[usedFiducial[7]]){
+                usedFiducial[7]=pnpCount;
+              }
+            }
+          }
+          pnpCount++;
+        }
       }
 
       //Autodetect to board outline
@@ -726,6 +818,16 @@ void loadBoardInformation() {
         }
       }
     } 
+  }
+
+
+  //convert the values in usedFiducial into somthing realy useful
+  int tmp[];
+  for (int n=0;n<8;n++) {
+    tmp[usedFiducial[n]]=1;
+  }
+  for (int l=0;l<pnpCount;l++){
+    usedFiducial[l] = tmp[l];
   }
 }
 
@@ -857,6 +959,9 @@ int showListOfDevices() {
         feeder = "No feeder assigned!";
       } else if(pnpFeeder[i] == FEEDER_FIDUCIAL){
         feeder = "Fiducial";
+        if(usedFiducial[i]){
+          feeder += " used";
+        }
       } else if(pnpFeeder[i] == FEEDER_DNP){
         feeder = "No Mount";
       } else if(pnpFeeder[i] == FEEDER_NO_MOUNT){
@@ -1051,7 +1156,7 @@ int showListOfDevices() {
 }
 
 if (!board) {
-    //dlgMessageBox("\n    Start this ULP in a Board    \n");
+    //switches to the board and starts again
     exit ("EDIT .brd; RUN "+argv[0]);  
 } else {
 
