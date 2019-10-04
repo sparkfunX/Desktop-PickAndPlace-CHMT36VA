@@ -202,7 +202,6 @@ void addHeader() {
   printf("\n");
 }
 
-
 /**
  * Figures out the feeders needed and creates a material stack
  * @param   position    Top (0) or bottom (1) layer placement
@@ -516,11 +515,25 @@ void downloadFeederData(){
   if(feederListMode ==  0) { //Local CSV
     numberOfFeeders = fileread(availableFeederList, filedir(argv[0]) + feederCSV);
   } else {                  //Download data from url / google spreadsheets
-    numberOfFeeders = netget(availableFeederList, feederListUrl);
+    string url = feederListUrl;
+    int ind=strstr(feederListUrl,"edit?");
+    
+    if(ind != -1){
+      int n = strstr(feederListUrl,"/d/")+3;
+      int l = strstr(feederListUrl,"#gid=")+1;
+
+      string basUrl = strsub(feederListUrl,0,ind);
+      string id = strsub(feederListUrl,n,(ind-n-1));
+      string gid = strsub(feederListUrl,l);
+
+      url = basUrl + "export?format=csv&id=" + id + "&" + gid;
+    }
+
+    numberOfFeeders = netget(availableFeederList, url);
   }
 
   // Check if everything was ok
-  if (numberOfFeeders == 0){
+  if (numberOfFeeders <= 0){
     dlgMessageBox("Error: Feeder file not found.", "OK");
     exit(0);
   }
@@ -554,11 +567,25 @@ void downloadTrayData(){
   if(trayListMode ==  0) { //Local CSV
     numberOfTrays = fileread(availableTrayList, filedir(argv[0]) + trayCSV);
   } else {                  //Download data from url / google spreadsheets
-    numberOfTrays = netget(availableTrayList, trayListUrl);
+    string url = trayListUrl;
+    int ind=strstr(trayListUrl,"edit?");
+    
+    if(ind != -1){
+      int n = strstr(trayListUrl,"/d/")+3;
+      int l = strstr(trayListUrl,"#gid=")+1;
+
+      string basUrl = strsub(trayListUrl,0,ind);
+      string id = strsub(trayListUrl,n,(ind-n-1));
+      string gid = strsub(trayListUrl,l);
+
+      url = basUrl + "export?format=csv&id=" + id + "&" + gid;
+    }
+
+    numberOfTrays = netget(availableTrayList, url);
   }
 
   // Check if everything was ok
-  if (numberOfTrays == 0){
+  if (numberOfTrays <= 0){
     dlgMessageBox("Error: Feeder file not found.", "OK");
     exit(0);
   }
