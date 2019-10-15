@@ -670,22 +670,26 @@ void loadBoardInformation() {
           isTop = 1;
 
 	        //Find centroid of this component
-          if (C.x != xmax) xmax = C.x;
-          if (C.y != ymax) ymax = C.y;
+          if (C.x > xmax) xmax = C.x;
+          if (C.y > ymax) ymax = C.y;
+          if (C.x < xmin) xmin = C.x;
+          if (C.y < ymin) ymin = C.y;
         }
         if (C.smd && C.smd.layer == 16) {
           isSmd = 1;
           isBottom = 1;
 
-          if (C.x != xmax) xmax = C.x;
-          if (C.y != ymax) ymax = C.y;
+          if (C.x > xmax) xmax = C.x;
+          if (C.y > ymax) ymax = C.y;
+          if (C.x < xmin) xmin = C.x;
+          if (C.y < ymin) ymin = C.y;
         }
       }
 
       //If the part is SMD, process it
       if (isSmd) {
-		    real xCenter = (xmin + xmax) / 2;
-        real yCenter = (ymin + ymax) / 2;
+		real xCenter = (xmin + xmax) / 2;
+   		real yCenter = (ymin + ymax) / 2;
 		
         pnpName[pnpCount]       = E.value + '-' + E.package.name;
         pnpDesignator[pnpCount] = E.name;
