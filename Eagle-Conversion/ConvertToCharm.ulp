@@ -24,12 +24,13 @@ int       autodetectColumns   = 1;
 int       flipHorizontal      = 1;
 string 	  defaultFileLocation = "";
 int       useAutomaticOffset  = 1;
-int       useFiducials        = 0;
-int       numBoardsinPanelX   = 1;
-int       numBoardsinPanelY   = 1;
-int       absPanelOffsetX     = 0;
-int       absPanelOffsetY     = 0;
-int       panelice            = 0;
+int       useFiducials        = 1;
+int       numBoardsInPanelX   = 1;
+int       numBoardsInPanelY   = 1;
+real      panelOffsetX        = 0.0;
+real      panelOffsetY        = 0.0;
+int       panelMode           = 0;
+int       panelise            = 0;
 
 string pnpName[];
 string pnpDesignator[];
@@ -86,11 +87,13 @@ void configWrite(){
     printf("%s\n",   trayListUrl);
     printf("%s\n",   trayCSV);
     printf("%d\n",   useFiducials);
-    printf("%d\n",   numBoardsinPanelX);
-    printf("%d\n",   numBoardsinPanelY);
-    printf("%d\n",   absPanelOffsetX);
-    printf("%d\n",   absPanelOffsetY);
-    printf("%d\n",   panelice);
+    printf("%d\n",   numBoardsInPanelX);
+    printf("%d\n",   numBoardsInPanelY);
+    printf("%.5f\n",   panelOffsetX);
+    printf("%.5f\n",   panelOffsetY);
+    printf("%d\n",   panelise);
+    printf("%d\n",   panelMode);
+
   }
 }
 
@@ -117,14 +120,87 @@ void configRead() {
       trayListUrl         = data[12];
       trayCSV             = data[13];
       useFiducials        = strtol(data[14]);
-      numBoardsinPanelX   = strtol(data[15]);
-      numBoardsinPanelY   = strtol(data[16]);
-      absPanelOffsetX     = strtol(data[17]);
-      absPanelOffsetY     = strtol(data[18]);
-      panelice            = strtol(data[19]);
+      numBoardsInPanelX   = strtol(data[15]);
+      numBoardsInPanelY   = strtol(data[16]);
+      panelOffsetX        = strtol(data[17]);
+      panelOffsetY        = strtol(data[18]);
+      panelise            = strtol(data[19]);
+      panelMode           = strtol(data[20]);
     }
   }
 }
+
+/**
+ * Get the X-width of the board in Eagle-Uits
+ * This function is automatic offset aware
+ */
+int getWidthX(){
+  int w = maxX-minX;
+  if(!useAutomaticOffset){
+    w = mm2u(widthX);
+  }
+  return w;
+}
+
+/**
+ * Get the Y-width of the board in Eagle-Uits
+ * This function is automatic offset aware
+ */
+int getWidthY(){
+  int w = maxY-minY;
+  if(!useAutomaticOffset){
+    w = mm2u(widthY);
+  }
+  return w;
+}
+
+/**
+ * Get the X-width of the board in Eagle-Uits
+ * This function is automatic offset aware
+ */
+int getMaxX(){
+  int w = maxX;
+  if(!useAutomaticOffset){
+    w = mm2u(widthX);
+  }
+  return w;
+}
+
+/**
+ * Get the Y-width of the board in Eagle-Uits
+ * This function is automatic offset aware
+ */
+int getMaxY(){
+  int w = maxY;
+  if(!useAutomaticOffset){
+    w = mm2u(widthY);
+  }
+  return w;
+}
+
+/**
+ * Get the X-origin of the board in Eagle-Uits
+ * This function is automatic offset aware
+ */
+int getOriginX(){
+  int o = minX;
+  if(!useAutomaticOffset){
+    o = mm2u(originX);
+  }
+  return o;
+}
+/**
+ * Get the Y-origin of the board in Eagle-Uits
+ * This function is automatic offset aware
+ */
+int getOriginY(){
+  int o = minY;
+  if(!useAutomaticOffset){
+    o = mm2u(originY);
+  }
+  return o;
+}
+
 
 /**
  * This function transforms the X coordinates
@@ -132,16 +208,8 @@ void configRead() {
  * @return Transformed X coordinate
  */
 int transformCoordinateX(int x, int pos){
-  //Pre default, use the automatically generated coordinates
-  int oX = minX;
-  int wX = maxX;
-
-  //If this causes problems, we allow overwriting the automatic 
-  //offset with manual information
-  if(!useAutomaticOffset){
-    oX = mm2u(originX);
-    wX = mm2u(widthX);
-  }
+  int oX = getOriginX();
+  int wX = getMaxX();
 
   //Handle Top + Bottom H/V Flip transformation
   int offset = 0;
@@ -163,16 +231,8 @@ int transformCoordinateX(int x, int pos){
  * @return Transformed X coordinate
  */
 int transformCoordinateY(int y, int pos){
-  //Pre default, use the automatically generated coordinates
-  int oY = minY;
-  int wY = maxY;
-
-  //If this causes problems, we allow overwriting the automatic 
-  //offset with manual information
-  if(!useAutomaticOffset){
-    oY = mm2u(originY);
-    wY = mm2u(widthY);
-  }
+  int oY = getOriginY();
+  int wY = getMaxY();
 
   //Handle Top + Bottom H/V Flip transformation
   int offset = 0;
@@ -187,6 +247,7 @@ int transformCoordinateY(int y, int pos){
   }
   return offset + mm2u(offsetY);
 }
+
 
 /**
  * Adds the opening header information to the dpv file
@@ -276,7 +337,7 @@ void addFeeders(int position) {
 void addBatch() {
   //Batch is where the user takes multiple copies of the same design and mounts them
   //into the machine at the same time.
-  //Doing an array is where you have one PCB but X number of copies paneliced into an array
+  //Doing an array is where you have one PCB but X number of copies panelised into an array
 
   //If you are doing a batch then the header is
   //PANELYPE,0
@@ -289,8 +350,15 @@ void addBatch() {
   //When there is a batch of boards it looks like this
   printf("Table,No.,ID,IntervalX,IntervalY,NumX,NumY\n");
   //printf("Panel_Coord,0,1,0,0\n");
-  if(panelice){
-    printf("Panel_Array,0,1,%d,%d,%d,%d\n", absPanelOffsetX, absPanelOffsetY, numBoardsinPanelX, numBoardsinPanelY);
+  if(panelise){
+    real offsetX = panelOffsetX;
+    real offsetY = panelOffsetY;
+    if(panelMode == 0){
+      offsetX += u2mm(getWidthX());
+      offsetY += u2mm(getWidthY());
+    }
+
+    printf("Panel_Array,0,1,%.5f,%.5f,%d,%d\n", offsetX, offsetY, numBoardsInPanelX, numBoardsInPanelY);
   }
   else {
     printf("Panel_Array,0,1,0,0,1,1\n");
@@ -862,18 +930,42 @@ void loadBoardInformation() {
   }
 }
 
+int tab=0;
+string offX = "";
+string offY = "";
+string pWithX = "";
+string pWithY = "";
+
+
+/** 
+ * Update panelise gui
+ */
+void updatePanelOptions(void) {  
+  real offsetX = panelOffsetX;
+  real offsetY = panelOffsetY;
+  if(panelMode == 0){
+    offsetX += u2mm(getWidthX());
+    offsetY += u2mm(getWidthY());
+  }
+
+  sprintf(offX, "%.2f mm", offsetX);
+  sprintf(offY, "%.2f mm", offsetY);
+
+  real width = offsetX*(numBoardsInPanelX-1)  + u2mm(getWidthX());
+  real height = offsetY*(numBoardsInPanelY-1) + u2mm(getWidthY());
+
+  sprintf(pWithX, "%.2f mm", width);
+  sprintf(pWithY, "%.2f mm", height);
+}
+
 /**
  * GUI Data
  */
 void showPanelOptions(void) {
   dlgDialog("Panel options") {
-    int tab=0;
-    int offsetPanelX = absPanelOffsetX - widthX;
-    int offsetPanelY = absPanelOffsetY - widthY;
-    string offX = itoa(absPanelOffsetX)+" mm";
-    string offY = itoa(absPanelOffsetY)+" mm";
-    string pWithX = itoa(absPanelOffsetX*numBoardsinPanelX)+" mm";
-    string pWithY = itoa(absPanelOffsetY*numBoardsinPanelY)+" mm";
+
+    updatePanelOptions();
+
     dlgVBoxLayout {
       dlgHBoxLayout {
         dlgLabel("<img src=\"helpGrafic.png\">");
@@ -881,25 +973,25 @@ void showPanelOptions(void) {
           dlgGroup("") {
             dlgHBoxLayout {
               dlgLabel("Repeat X:");
-              dlgIntEdit(numBoardsinPanelX,1,999999);
+              dlgIntEdit(numBoardsInPanelX,1,999999);
             }
             dlgHBoxLayout {
               dlgLabel("Repeat Y:");
-              dlgIntEdit(numBoardsinPanelY,1,999999);
+              dlgIntEdit(numBoardsInPanelY,1,999999);
             }
             dlgSpacing(15);
             dlgHBoxLayout {
-              dlgRadioButton("spacing between designs",tab);
-              dlgRadioButton("spacing between origins",tab);
+              dlgRadioButton("spacing between designs",panelMode);
+              dlgRadioButton("spacing between origins",panelMode);
             }
             dlgHBoxLayout {
               dlgLabel("Spacing X:");
-              dlgIntEdit(offsetPanelX,-999999,999999);
+              dlgRealEdit(panelOffsetX,-999999,999999);
               dlgLabel("mm");
             }
             dlgHBoxLayout {
               dlgLabel("Spacing Y:");
-              dlgIntEdit(offsetPanelY,-999999,999999);
+              dlgRealEdit(panelOffsetY,-999999,999999);
               dlgLabel("mm");
             }
             dlgSpacing(15);
@@ -924,33 +1016,13 @@ void showPanelOptions(void) {
               dlgLabel(pWithY,1);
             }
             dlgPushButton("Update") {
-              if(tab) {
-                absPanelOffsetX = offsetPanelX;
-                absPanelOffsetY = offsetPanelY;
-              }
-              else{
-                absPanelOffsetX = offsetPanelX + widthX;
-                absPanelOffsetY = offsetPanelY + widthY;
-              }
-              offX = itoa(absPanelOffsetX)+" mm";
-              offY = itoa(absPanelOffsetY)+" mm";
-
-              pWithX = itoa(absPanelOffsetX*numBoardsinPanelX)+" mm";
-              pWithY = itoa(absPanelOffsetY*numBoardsinPanelY)+" mm";
+              updatePanelOptions();
             }
           }
           dlgStretch(1);
           dlgHBoxLayout{
             dlgStretch(1);
             dlgPushButton("OK") {
-              if(tab) {
-                absPanelOffsetX = offsetPanelX;
-                absPanelOffsetY = offsetPanelY;
-              }
-              else{
-                absPanelOffsetX = offsetPanelX + widthX;
-                absPanelOffsetY = offsetPanelY + widthY;
-              }
               dlgAccept();
             }
           }
@@ -1089,7 +1161,7 @@ int showListOfDevices() {
                 }
                 dlgGroup("Panel options"){
                   dlgHBoxLayout {
-                    dlgCheckBox("Panelice",panelice);
+                    dlgCheckBox("Panelise",panelise);
                     dlgStretch(1);
                     dlgPushButton("Define") showPanelOptions();
                   }
