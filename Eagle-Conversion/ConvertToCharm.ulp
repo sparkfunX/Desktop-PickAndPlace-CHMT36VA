@@ -575,6 +575,22 @@ void writeOutputFile(int layer, string prefix) {
   }  
 }
 
+string convertUrl(string url) {
+  int ind=strstr(url,"edit");
+
+  if(ind != -1){
+    int n = strstr(url,"/d/")+3;
+    int l = strstr(url,"#gid=")+1;
+
+    string basUrl = strsub(url,0,ind);
+    string id = strsub(url,n,(ind-n-1));
+    string gid = strsub(url,l);
+
+    url = basUrl + "export?format=csv&id=" + id + "&" + gid;
+  }
+  return url;
+}
+
 /** 
  * Download the feeder data from the server
  * or load it from CSV
@@ -583,20 +599,7 @@ void downloadFeederData(){
   if(feederListMode ==  0) { //Local CSV
     numberOfFeeders = fileread(availableFeederList, filedir(argv[0]) + feederCSV);
   } else {                  //Download data from url / google spreadsheets
-    string url = feederListUrl;
-    int ind=strstr(feederListUrl,"edit?");
-    
-    if(ind != -1){
-      int n = strstr(feederListUrl,"/d/")+3;
-      int l = strstr(feederListUrl,"#gid=")+1;
-
-      string basUrl = strsub(feederListUrl,0,ind);
-      string id = strsub(feederListUrl,n,(ind-n-1));
-      string gid = strsub(feederListUrl,l);
-
-      url = basUrl + "export?format=csv&id=" + id + "&" + gid;
-    }
-
+    string url = convertUrl(feederListUrl);
     numberOfFeeders = netget(availableFeederList, url);
   }
 
@@ -635,20 +638,7 @@ void downloadTrayData(){
   if(trayListMode ==  0) { //Local CSV
     numberOfTrays = fileread(availableTrayList, filedir(argv[0]) + trayCSV);
   } else {                  //Download data from url / google spreadsheets
-    string url = trayListUrl;
-    int ind=strstr(trayListUrl,"edit?");
-    
-    if(ind != -1){
-      int n = strstr(trayListUrl,"/d/")+3;
-      int l = strstr(trayListUrl,"#gid=")+1;
-
-      string basUrl = strsub(trayListUrl,0,ind);
-      string id = strsub(trayListUrl,n,(ind-n-1));
-      string gid = strsub(trayListUrl,l);
-
-      url = basUrl + "export?format=csv&id=" + id + "&" + gid;
-    }
-
+    string url = convertUrl(trayListUrl);
     numberOfTrays = netget(availableTrayList, url);
   }
 
