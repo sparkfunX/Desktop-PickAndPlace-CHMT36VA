@@ -5,7 +5,7 @@
 "<author>Author: Bernhard Woerndl-Aichriedler, bwa@xdevelop.at</author>"
 
 // THIS PROGRAM IS PROVIDED AS IS AND WITHOUT WARRANTY OF ANY KIND, EXPRESSED OR IMPLIED
-
+ 
 #include "Include_String.ulp"
 #include "Include_Tables.ulp"
 
