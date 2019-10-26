@@ -60,8 +60,8 @@ real widthY     = 0;
 int MAX_FEEDER    		= 99;
 int FEEDER_FIDUCIAL   = 1000;
 int FEEDER_NEW    		= -1;
-int FEEDER_DNP    		= 0;
-int FEEDER_NO_MOUNT    	= 30; //This comes from spreadsheet
+int FEEDER_DNP    		= 0; //This comes from eagle brd file
+int FEEDER_NO_MOUNT    	= 999; //This comes from spreadsheet
 
 string configFile  = filesetext(argv[0], ".cfg");
 
