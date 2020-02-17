@@ -224,7 +224,7 @@ def load_cuttape_info_from_file(path):
 def load_component_info(component_position_file, offset, mirror_x, board_width):
     # Get position info from file
     componentCount = 0
-    with open(component_position_file) as fp:  
+    with open(component_position_file, encoding='utf-8') as fp:  
         line = fp.readline()
         
         while line:
@@ -586,7 +586,7 @@ def main(component_position_file, feeder_config_file, cuttape_config_file, outfi
             print(available_feeders[i])
     
     # Output to machine recipe file
-    with open(outfile, 'w', newline='\r\n') as f:
+    with open(outfile, 'w', encoding='utf-8', newline='\r\n') as f:
         add_header(f, outfile, component_position_file)
 
         add_feeders(f)
