@@ -524,14 +524,20 @@ def generate_bom(output_file, include_unassigned_components):
 
 
     # build data
-    out_array = [ [ "Id", "Designator", "Package", "Designator/Value", "Quantity", "AutoMounted"] ]
+    out_array = [ [ "Id", "Designator", "Package", "Designator/Value", "Quantity", "AutoMounted", "Feeder Type"] ]
     index = 0
     for c_ref in c_dict:
-        if not include_unassigned_components and c_ref[2] == "NoMount":
-            print ("Ignoring {}".format(c_ref))
-            continue
         comp_list = c_dict[c_ref]
-        out_array.append([index, ",".join([str(c.designator) for c in comp_list]), c_ref[0], c_ref[1], len(comp_list), "True" if c_ref[2] not in  ["NewSkip", "NoMount"] else "False"])
+        if not include_unassigned_components and c_ref[2] == "NoMount":
+            print ("Ignoring {} - {}".format(",".join([str(c.designator) for c in comp_list]), c_ref[0]))
+            continue
+        if c_ref[2] not in ["NewSkip", "NoMount"]:
+            auto_mounted = "True"
+            feeder_type = "Feeder" if int(c_ref[2]) < 80 else "Cut Tape"
+        else:
+            auto_mounted = "False"
+            feeder_type = ""
+        out_array.append([index, ",".join([str(c.designator) for c in comp_list]), c_ref[0], c_ref[1], len(comp_list), auto_mounted, feeder_type])
         
         index += 1
 
