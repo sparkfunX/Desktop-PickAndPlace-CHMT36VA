@@ -507,10 +507,9 @@ def add_calibration_factor(f):
     f.write("CalibFator,0,0,0,0,0,1,1,0\n") # Typo is required
 
 
-def generate_bom(output_file):
+def generate_bom(output_file, include_unassigned_components):
     # Generate bom file with feeder_ID info
     # Useful to order components not on the machine
-    # Ignore NewSkip components
     print ("Building BOM file...")
     make_reference = lambda c: (c.footprint, c.value, c.feeder_ID)
     c_dict = OrderedDict() # "ref": [c, c, ...]
@@ -528,11 +527,11 @@ def generate_bom(output_file):
     out_array = [ [ "Id", "Designator", "Package", "Designator/Value", "Quantity", "AutoMounted"] ]
     index = 0
     for c_ref in c_dict:
-        if c_ref[2] == "NoMount":
+        if not include_unassigned_components and c_ref[2] == "NoMount":
             print ("Ignoring {}".format(c_ref))
             continue
         comp_list = c_dict[c_ref]
-        out_array.append([index, ",".join([str(c.designator) for c in comp_list]), c_ref[0], c_ref[1], len(comp_list), "True" if c_ref[2] != "NewSkip" else "False"])
+        out_array.append([index, ",".join([str(c.designator) for c in comp_list]), c_ref[0], c_ref[1], len(comp_list), "True" if c_ref[2] not in  ["NewSkip", "NoMount"] else "False"])
         
         index += 1
 
@@ -606,7 +605,7 @@ def main(component_position_file, feeder_config_file, cuttape_config_file, outfi
     print('\nWrote output to {}\n'.format(outfile))
 
     if bom_output_file is not None:
-        generate_bom(bom_output_file)
+        generate_bom(bom_output_file, include_newskip)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process pos files from KiCAD to this nice, CharmHigh software')
