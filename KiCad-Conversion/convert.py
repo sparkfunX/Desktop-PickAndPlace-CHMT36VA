@@ -162,9 +162,6 @@ def load_feeder_info_from_file(path):
     print('Fetching feeder data from: {}'.format(path))
     for row in pyexcel.get_array(file_name=path, start_row=1): # skip header
         if(row[0] != "Stop"):
-            print('-----')
-            print(clear_utf8_characters(row[2]))
-            print('-----')
             # Add a new feeder using these values
             available_feeders.append(Feeder(feeder_ID=row[1],
                 device_name=clear_utf8_characters(row[2]),
@@ -197,7 +194,7 @@ def load_cuttape_info_from_file(path):
         # Append to feeder list
             # Add a new feeder using these values
             available_feeders.append(Feeder(feeder_ID=row[1],
-                device_name=row[2],
+                device_name=clear_utf8_characters(row[2]),
                 stack_x_offset=0,
                 stack_y_offset=0,
                 height=stof(row[7]),
