@@ -10343,6 +10343,7 @@ Also note, the SNAP packages are for using a snappable style connector. We sell 
 <part name="J1" library="SparkFun-Connectors" deviceset="CONN_06" device="NO_SILK_FEMALE_PTH"/>
 <part name="J5" library="SparkFun-Connectors" deviceset="CONN_01" device="PTH_NO_SILK_YES_STOP"/>
 <part name="J8" library="SparkFun-Connectors" deviceset="CONN_02" device="1X02_NO_SILK"/>
+<part name="JP1" library="SparkFun" deviceset="FIDUCIAL" device="UFIDUCIAL"/>
 </parts>
 <sheets>
 <sheet>
@@ -10459,6 +10460,7 @@ SPI</text>
 <instance part="J1" gate="G$1" x="114.3" y="58.42"/>
 <instance part="J5" gate="G$1" x="63.5" y="114.3"/>
 <instance part="J8" gate="G$1" x="20.32" y="30.48"/>
+<instance part="JP1" gate="G$1" x="231.14" y="25.4"/>
 </instances>
 <busses>
 </busses>

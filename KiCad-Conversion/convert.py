@@ -1,4 +1,4 @@
-# This takes a KiCad POS file and converts it to a CharmHigh desktop pick and place work file 
+# This takes a KiCad POS file and converts it to a CharmHigh desktop pick and place work file
 # Usage: python convert.py MyBoard.POS
 # We need to give this script the position file
 # Script pulls in feeder data info from a google spreadsheet
@@ -18,7 +18,7 @@ import argparse
 
 
 # Used for pulling data from g spreadsheet
-import csv 
+import csv
 import urllib.request, urllib.error, urllib.parse
 from collections import OrderedDict
 
@@ -68,11 +68,16 @@ def stoi(s, default=0):
     except ValueError:
         return default
 
+def clear_utf8_characters(str):
+    str = str.replace('μ','u')
+    str = str.replace('Ω','Ohm')
+    return str
+
 def locate_feeder_info(component_ID):
     # Given a component ID, try to find its name in the available feeders
     # Search the feeder list of aliases as well
     # Returns the ID of the feeder
-    
+
     assert (component_ID < len(components))
 
     component_name = components[component_ID].component_name()
@@ -80,19 +85,19 @@ def locate_feeder_info(component_ID):
     for i in range(len(available_feeders)):
         if component_name == available_feeders[i].device_name:
             return available_feeders[i].feeder_ID
-        
+
         if component_name in available_feeders[i].aliases:
             return available_feeders[i].feeder_ID
-        
+
 
     # If it's not in the feeders look to see if it's a non-mountable device
     # Get the aliases then split them
     nonmount_devices = available_feeders[len(available_feeders)-1].aliases.split(':')
-    
+
     for i in range(len(nonmount_devices)):
         if nonmount_devices[i] in component_name:
             return "NoMount"
-        
+
     #If we still can't find it mark it as a new feeder but with skip/don't mount
     return "NewSkip"
 
@@ -100,10 +105,10 @@ def get_working_name(component_ID):
     # Given a comp ID, return the easy to read name that will be displayed in the software
     # Resolves part to any aliases that may exist
     feeder_ID = locate_feeder_info(component_ID)
-    
+
     if feeder_ID == "NoMount": return feeder_ID
     if feeder_ID == "NewSkip": return components[component_ID].component_name()
-    
+
     for i in range(len(available_feeders)):
         if feeder_ID == available_feeders[i].feeder_ID:
             return available_feeders[i].device_name
@@ -130,8 +135,8 @@ def load_feeder_info_from_net():
     for row in fp:
         if(row[0] != "Stop"):
             # Add a new feeder using these values
-            available_feeders.append(Feeder(feeder_ID=row[1], 
-                device_name=row[2], 
+            available_feeders.append(Feeder(feeder_ID=row[1],
+                device_name=clear_utf8_characters(row[2]),
                 stack_x_offset=stof(row[3]),
                 stack_y_offset=stof(row[4]),
                 height=stof(row[5]),
@@ -158,8 +163,8 @@ def load_feeder_info_from_file(path):
     for row in pyexcel.get_array(file_name=path, start_row=1): # skip header
         if(row[0] != "Stop"):
             # Add a new feeder using these values
-            available_feeders.append(Feeder(feeder_ID=row[1], 
-                device_name=row[2], 
+            available_feeders.append(Feeder(feeder_ID=row[1],
+                device_name=clear_utf8_characters(row[2]),
                 stack_x_offset=stof(row[3]),
                 stack_y_offset=stof(row[4]),
                 height=stof(row[5]),
@@ -188,10 +193,10 @@ def load_cuttape_info_from_file(path):
         if(row[0] != "Stop"):
         # Append to feeder list
             # Add a new feeder using these values
-            available_feeders.append(Feeder(feeder_ID=row[1], 
-                device_name=row[2], 
+            available_feeders.append(Feeder(feeder_ID=row[1],
+                device_name=clear_utf8_characters(row[2]),
                 stack_x_offset=0,
-                stack_y_offset=0, 
+                stack_y_offset=0,
                 height=stof(row[7]),
                 speed=stoi(row[8]),
                 head=stoi(row[9]),
@@ -206,7 +211,7 @@ def load_cuttape_info_from_file(path):
                 ))
 
         # Append to the IC Tray Data
-            ic_trays.append(ICTray(feeder_ID=row[1], 
+            ic_trays.append(ICTray(feeder_ID=row[1],
                 first_IC_center_X=stof(row[3]),
                 first_IC_center_Y=stof(row[4]),
 
@@ -224,24 +229,23 @@ def load_cuttape_info_from_file(path):
 def load_component_info(component_position_file, offset, mirror_x, board_width):
     # Get position info from file
     componentCount = 0
-    with open(component_position_file) as fp:  
+    with open(component_position_file, encoding='utf-8') as fp:
         line = fp.readline()
-        
+
         while line:
             if(line[0] != '#'):
                 line = re.sub(' +',' ',line) #Remove extra spaces
                 token = line.split(' ')
-                
                 # Add a new component using these values
-                components.append(PartPlacement(componentCount, 
-                    designator=token[0], 
-                    value=token[1], 
-                    footprint=token[2], 
-                    x=stof(token[3]), 
-                    y=stof(token[4]), 
+                components.append(PartPlacement(componentCount,
+                    designator=token[0],
+                    value=clear_utf8_characters(token[1]),
+                    footprint=token[2],
+                    x=stof(token[3]),
+                    y=stof(token[4]),
                     rotation=stof(token[5])
                     ))
-                
+
                 #componentName = components[componentCount].component_name()
 
                 # Find this component in the available feeders if possible
@@ -249,7 +253,7 @@ def load_component_info(component_position_file, offset, mirror_x, board_width):
 
                 # Find the associated feeder
                 feeder = get_feeder(components[componentCount].feeder_ID)
-                
+
                 # Correct tape orientation (mounted 90 degrees from the board)
                 components[componentCount].rotation = components[componentCount].rotation - 90
 
@@ -261,7 +265,7 @@ def load_component_info(component_position_file, offset, mirror_x, board_width):
                     components[componentCount].rotation = components[componentCount].rotation + 360
                 elif(components[componentCount].rotation > 180):
                     components[componentCount].rotation = components[componentCount].rotation - 360
-                    
+
                 # Mirror rotation if needed
                 if(mirror_x):
                     components[componentCount].rotation = -components[componentCount].rotation
@@ -293,11 +297,11 @@ def load_component_info(component_position_file, offset, mirror_x, board_width):
                 # Add any global corrections (offset)
                 components[componentCount].y = components[componentCount].y + offset[1]
                 components[componentCount].x = components[componentCount].x + offset[0]
-                
+
                 # Add the board width if the file should be mirrored along x
                 if (mirror_x):
                     components[componentCount].x = components[componentCount].x + board_width
-                
+
                 componentCount = componentCount + 1
             line = fp.readline() # Get the next line
     fp.close()
@@ -323,11 +327,11 @@ def add_feeders(f):
     # Output used feeders
     f.write("\n")
     f.write("Table,No.,ID,DeltX,DeltY,FeedRates,Note,Height,Speed,Status,SizeX,SizeY,HeightTake,DelayTake\n")
-    
+
     station_number = 0
     for i in range(len(available_feeders)):
         if available_feeders[i].count_in_design != 0 and available_feeders[i].feeder_ID != "NoMount":
-            
+
             # Mount value explanation:
             # 0b.0000.0ABC
             # A = 1 = Use Vision
@@ -347,7 +351,7 @@ def add_feeders(f):
 
 
             f.write('Station,{},{},{:.8g},{:.8g},{},{},{:.8g},{},{},{:.8g},{:.8g},{},{}\n'.format(
-                station_number, 
+                station_number,
                 available_feeders[i].feeder_ID,
                 available_feeders[i].stack_x_offset,
                 available_feeders[i].stack_y_offset,
@@ -368,7 +372,7 @@ def add_batch(f):
     # Batch is where the user takes multiple copies of the same design and mounts them
     # into the machine at the same time.
     # Doing an array is where you have one PCB but X number of copies panelized into an array
-    
+
     # If you are doing a batch then the header is
     # PANELYPE,0
     # If you are doing an array then the header is
@@ -401,7 +405,7 @@ def add_components(f, include_newskip):
 
     record_ID = 1
     record_number = 0
-    
+
     for i in range(len(components)):
         if components[i].feeder_ID == "NoMount":
             continue # Do not include NoMount components in the DPV file
@@ -410,7 +414,7 @@ def add_components(f, include_newskip):
             if not include_newskip:
                 continue # No not include NewSkip components unless explicitly asked
             components[i].place_component = False
-            
+
         working_name = get_working_name(components[i].component_ID)
 
         # 0b.0000.0ABC
@@ -430,7 +434,7 @@ def add_components(f, include_newskip):
             mount_value += 4
 
         f.write('EComponent,{},{},{},{},{:.8g},{:.8g},{:.4g},{:.8g},{},{},{},{},{}\n'.format(
-            record_number, 
+            record_number,
             record_ID,
             components[i].head,
             components[i].feeder_ID if components[i].feeder_ID != "NewSkip" else 99,
@@ -444,7 +448,7 @@ def add_components(f, include_newskip):
             working_name,
             0   # Delay
             ))
-        
+
         record_number += 1
         record_ID += 1
 
@@ -490,7 +494,7 @@ def add_fiducials(f):
     # TODO if more than 3 fiducials are detected, select the fiducials to use based on their position (ex: panels)
     f.write("\n")
     f.write("Table,No.,ID,offsetX,offsetY,Note\n")
-    
+
     if (len(fiducials) >= 2):
         for i in range(min(len(fiducials), 3)):
             f.write("CalibPoint,{},0,{},{},Mark{}\n".format(i, fiducials[i].x, fiducials[i].y, i+1))
@@ -501,7 +505,7 @@ def add_calibration_factor(f):
     # Add the calibration factor. This is all the offsets calculated when the
     # PCB is calibrated. We don't have to set anything here because the program
     # will calculate things after user calibrates the PCB.
-    
+
     f.write("\n")
     f.write("Table,No.,DeltX,DeltY,AlphaX,AlphaY,BetaX,BetaY,DeltaAngle\n")
     f.write("CalibFator,0,0,0,0,0,1,1,0\n") # Typo is required
@@ -513,7 +517,7 @@ def generate_bom(output_file, include_unassigned_components):
     print ("Building BOM file...")
     make_reference = lambda c: (c.footprint, c.value, c.feeder_ID)
     c_dict = OrderedDict() # "ref": [c, c, ...]
-    
+
     # group components by value_package
     for c in components:
         ref = make_reference(c)
@@ -550,11 +554,11 @@ def main(component_position_file, feeder_config_file, cuttape_config_file, outfi
         if not os.path.isfile(f):
             print ("ERROR: {} is not an existing file".format(f))
             sys.exit(-1)
-    
+
 
     if outfile is None:
         basename = os.path.splitext(os.path.basename(component_position_file))[0]
-        
+
         outfile = os.path.join('output', "{date}-{basename}.dpv".format(date=datetime.datetime.now().strftime("%Y%m%d-%H%M%S"), basename=basename))
         os.makedirs('output', exist_ok=True)
 
@@ -562,13 +566,13 @@ def main(component_position_file, feeder_config_file, cuttape_config_file, outfi
     load_feeder_info_from_file(feeder_config_file)
     if cuttape_config_file is not None:
         load_cuttape_info_from_file(cuttape_config_file)
-        
+
     # Get position info from file
     load_component_info(component_position_file, offset, mirror_x, board_width)
 
     # Detect fiducials in the components list
     find_fiducials()
-    
+
     # Mark all the available feeders that have a component in this design
     for i in range(len(components)):
         for j in range(len(available_feeders)):
@@ -583,29 +587,29 @@ def main(component_position_file, feeder_config_file, cuttape_config_file, outfi
     print("\nComponents Not Mounted:")
     for comp in [c for c in components if c.feeder_ID in ['NoMount', 'NewSkip']]:
         print (comp)
-        
+
 
     print("\nUsed Feeders:")
     for i in range(len(available_feeders)):
         if available_feeders[i].count_in_design != 0 and available_feeders[i].feeder_ID != "NoMount":
             print(available_feeders[i])
-    
+
     # Output to machine recipe file
-    with open(outfile, 'w', newline='\r\n') as f:
+    with open(outfile, 'w', encoding='utf-8', newline='\r\n') as f:
         add_header(f, outfile, component_position_file)
 
         add_feeders(f)
-        
+
         add_batch(f)
-        
+
         add_components(f, include_newskip)
-        
+
         add_ic_tray(f)
-        
+
         add_PCB_calibrate(f)
-        
+
         add_fiducials(f)
-        
+
         add_calibration_factor(f)
 
     print('\nWrote output to {}\n'.format(outfile))
@@ -617,7 +621,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process pos files from KiCAD to this nice, CharmHigh software')
     parser.add_argument('component_position_file', type=str, help='KiCAD position file in ASCII')
     parser.add_argument('feeder_config_file', type=str, help='Feeder definition file. Supported file formats : csv, ods, fods, xls, xlsx,...')
-    
+
     parser.add_argument("--cuttape_config_file", type=str, help='Cut Tape Definition file. Supported file formats : csv, ods, fods, xls, xlsx,...')
 
     parser.add_argument('--output', type=str, help='Output file. If not specified, the position file name is used and the dpv file is created in the output/ folder.')
@@ -626,10 +630,10 @@ if __name__ == '__main__':
     parser.add_argument('--include_unassigned_components', action="store_true", help='Include in the output file the components not associated to any feeder. By default these components will be assigned to feeder 99 and not placed but can still be manually assigned to a custom tray.')
 
     parser.add_argument('--offset', nargs=2, type=float, default=[0, 0], metavar=('x', 'y'), help='Global offset added to every component.')
-    
+
     mirror_group = parser.add_argument_group("Processing bottom component files")
     mirror_group.add_argument('--mirror_x', action="store_true", help='Mirror components along X axis. Useful when processing a file with components mounted on the bottom.')
-    
+
     mirror_group.add_argument('--board_width', type=float, help='Board width in mm. Use in conjunction with --mirror-x to make sure the components are aligned to the bottom left side.')
 
     args = parser.parse_args()
