@@ -86,3 +86,44 @@ It's worth buying a box of cover tape extenders (the tape that comes on reels). 
 Part number 1108C (8mm) worked well for most uses.
 
 ![](images/cover_tape_extender.png)
+
+Camera Calibration Procedure
+----------------------------
+
+Procedure for setting down and up camera visual calibration.
+
+Discussion: https://groups.google.com/forum/#!topic/desktop-pick-and-place/8cd_NNXNBVU
+
+1. go into diagnostics, turn on the down camera light.
+
+2. exit diagnostics.
+3. go into Settings, System Set, enter password 20090318.
+4. press visual calibrate
+5. press 'down', camera shows down-camera view, write down rfactor for down-camera.
+6. press 'up', camera shows up-camera view write down rfactor for up-camera.
+7. press calibrate, head moves over up camera.
+8. find a large square part that is easy to measure with calipers. e.g. 5x5m QFN or larger.
+9. measure the part in millimeters (mm)
+10. place large part on nozzle, pins down.
+11. adjust threshold so that bounding box highlights the part.
+12. press 'R size X' enter the X measurement of the part in mm.
+13. press 'R size Y' enter the Y measurement of the part in mm.
+14. press 'Update' to re-calculate the 'R-Factor' for the up-camera based on the bounding box of the part and the actual component size.
+15. press 'down', camera shows down camera view.
+16. get a white piece of paper and place it over the down camera.
+17. place the part on the piece of paper, PINS DOWN still, center it the view.
+18. adjust threshold so that bounding box highlights the part.
+19. press 'R size X' enter the X measurement of the part in mm.
+20. press 'R size Y' enter the Y measurement of the part in mm.
+21. press 'Update' to re-calculate the 'R-Factor' for the down-camera based on the bounding box of the part and the actual component size.
+22. press back
+23. press save.
+
+
+For reference settings from Dominic Clifton's CHMT48VB are as follows:
+* down camera threshold is 135 with an rfactor of 0.042383
+
+* up camera threshold 110 with an rfactor of 0.42356
+
+as supplied the camera was out of focus so the thresholds required adjustment once the focus was fixes.
+
