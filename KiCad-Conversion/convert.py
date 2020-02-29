@@ -517,10 +517,9 @@ def add_calibration_factor(f):
     f.write("CalibFator,0,0,0,0,0,1,1,0\n") # Typo is required
 
 
-def generate_bom(output_file):
+def generate_bom(output_file, include_unassigned_components):
     # Generate bom file with feeder_ID info
     # Useful to order components not on the machine
-    # Ignore NewSkip components
     print ("Building BOM file...")
     make_reference = lambda c: (c.footprint, c.value, c.feeder_ID)
     c_dict = OrderedDict() # "ref": [c, c, ...]
@@ -535,15 +534,21 @@ def generate_bom(output_file):
 
 
     # build data
-    out_array = [ [ "Id", "Designator", "Package", "Designator/Value", "Quantity", "AutoMounted"] ]
+    out_array = [ [ "Id", "Designator", "Package", "Designator/Value", "Quantity", "AutoMounted", "Feeder Type"] ]
     index = 0
     for c_ref in c_dict:
-        if c_ref[2] == "NoMount":
-            print ("Ignoring {}".format(c_ref))
-            continue
         comp_list = c_dict[c_ref]
-        out_array.append([index, ",".join([str(c.designator) for c in comp_list]), c_ref[0], c_ref[1], len(comp_list), "True" if c_ref[2] != "NewSkip" else "False"])
-
+        if not include_unassigned_components and c_ref[2] == "NoMount":
+            print ("Ignoring {} - {}".format(",".join([str(c.designator) for c in comp_list]), c_ref[0]))
+            continue
+        if c_ref[2] not in ["NewSkip", "NoMount"]:
+            auto_mounted = "True"
+            feeder_type = "Feeder" if int(c_ref[2]) < 80 else "Cut Tape"
+        else:
+            auto_mounted = "False"
+            feeder_type = ""
+        out_array.append([index, ",".join([str(c.designator) for c in comp_list]), c_ref[0], c_ref[1], len(comp_list), auto_mounted, feeder_type])
+        
         index += 1
 
     pyexcel.save_as(array=out_array, dest_file_name=output_file)
@@ -616,7 +621,7 @@ def main(component_position_file, feeder_config_file, cuttape_config_file, outfi
     print('\nWrote output to {}\n'.format(outfile))
 
     if bom_output_file is not None:
-        generate_bom(bom_output_file)
+        generate_bom(bom_output_file, include_newskip)
 
 def cli():
     parser = argparse.ArgumentParser(description='Process pos files from KiCAD to this nice, CharmHigh software')
