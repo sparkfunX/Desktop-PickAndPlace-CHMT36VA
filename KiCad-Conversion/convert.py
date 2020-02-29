@@ -24,10 +24,16 @@ from collections import OrderedDict
 
 import pyexcel
 
-from Feeder import Feeder
-from ICTray import ICTray
-from PartPlacement import PartPlacement
-from FileOperations import FileOperations
+try: # WOw, that so ugly... I don't know how to import modules to keep compat with 'python convert.py' and with the new cli call...
+    from Feeder import Feeder
+    from ICTray import ICTray
+    from PartPlacement import PartPlacement
+    from FileOperations import FileOperations
+except ImportError:
+    from .Feeder import Feeder
+    from .ICTray import ICTray
+    from .PartPlacement import PartPlacement
+    from .FileOperations import FileOperations
 
 available_feeders = [] # List of available feeders from user's CSV
 ic_trays = []
@@ -612,7 +618,7 @@ def main(component_position_file, feeder_config_file, cuttape_config_file, outfi
     if bom_output_file is not None:
         generate_bom(bom_output_file)
 
-if __name__ == '__main__':
+def cli():
     parser = argparse.ArgumentParser(description='Process pos files from KiCAD to this nice, CharmHigh software')
     parser.add_argument('component_position_file', type=str, help='KiCAD position file in ASCII')
     parser.add_argument('feeder_config_file', type=str, help='Feeder definition file. Supported file formats : csv, ods, fods, xls, xlsx,...')
@@ -634,3 +640,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     main(args.component_position_file, args.feeder_config_file, args.cuttape_config_file, args.output, args.include_unassigned_components, args.offset, args.mirror_x, args.board_width, args.bom_file)
+
+
+if __name__ == '__main__':
+    cli()
