@@ -299,6 +299,7 @@ def load_component_info(component_position_file, offset, mirror_x, board_width):
                 components[componentCount].place_component = feeder.place_component
                 components[componentCount].check_vacuum = feeder.check_vacuum
                 components[componentCount].use_vision = feeder.use_vision
+                components[componentCount].height = feeder.height
 
                 # Add any global corrections (offset)
                 components[componentCount].y = components[componentCount].y + offset[1]
