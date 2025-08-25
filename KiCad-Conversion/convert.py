@@ -16,6 +16,7 @@ import io
 import os
 import argparse
 
+import math
 
 # Used for pulling data from g spreadsheet
 import csv
@@ -260,6 +261,9 @@ def load_component_info(component_position_file, offset, mirror_x, board_width):
                 # Find the associated feeder
                 feeder = get_feeder(components[componentCount].feeder_ID)
 
+                # Save the original rotation as was specified on the PCB. Will need that later for centroid corrections
+                originalRotation = components[componentCount].rotation
+
                 # Correct tape orientation (mounted 90 degrees from the board)
                 components[componentCount].rotation = components[componentCount].rotation - 90
 
@@ -276,24 +280,19 @@ def load_component_info(component_position_file, offset, mirror_x, board_width):
                 if(mirror_x):
                     components[componentCount].rotation = -components[componentCount].rotation
 
-                # There are some components that have a centroid point in the wrong place (Qwiic Connector)
-                # If this component has a correction, use it
-                if(components[componentCount].rotation == -180.0):
-                    components[componentCount].x = components[componentCount].x + feeder.centroid_correction_y
-                    components[componentCount].y = components[componentCount].y + feeder.centroid_correction_x
-                elif(components[componentCount].rotation == 180.0): # Duplicate of first
-                    components[componentCount].x = components[componentCount].x + feeder.centroid_correction_y
-                    components[componentCount].y = components[componentCount].y + feeder.centroid_correction_x
-                elif(components[componentCount].rotation == -90.0):
-                    components[componentCount].y = components[componentCount].y + feeder.centroid_correction_y
-                    components[componentCount].x = components[componentCount].x + feeder.centroid_correction_x
-                elif(components[componentCount].rotation == 0.0):
-                    components[componentCount].x = components[componentCount].x - feeder.centroid_correction_y
-                    components[componentCount].y = components[componentCount].y - feeder.centroid_correction_x
-                elif(components[componentCount].rotation == 90.0):
-                    components[componentCount].y = components[componentCount].y - feeder.centroid_correction_y
-                    components[componentCount].x = components[componentCount].x - feeder.centroid_correction_x
+                # Apply centroid correction and allow for arbitrary angles by rotating the correction
+                # We need to rotate the correction by the original rotation as was specified on the PCB
+                # because centroid correction will be relative to the footprint, before any feeder/tape corrections
+                x = feeder.centroid_correction_x
+                y = feeder.centroid_correction_y
+                # TODO do we need to handle mirror_x, and negate the originalRotation?
+                angle = math.radians(originalRotation)
+                x_new = x * math.cos(angle) - y * math.sin(angle)
+                y_new = x * math.sin(angle) + y * math.cos(angle)
+                components[componentCount].x = components[componentCount].x + x_new
+                components[componentCount].y = components[componentCount].y + y_new
 
+                
                 # Assign pick head, speed and other feeder parameters
                 components[componentCount].head = feeder.head
                 components[componentCount].place_component = feeder.place_component
